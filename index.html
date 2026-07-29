@@ -1,0 +1,1533 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Change-App</title>
+
+  <style>
+    /* ===== Farben ===== */
+    :root {
+      --hintergrund: #f2f4f7;
+      --karte: #ffffff;
+      --text: #1c2430;
+      --text-leise: #8a94a6;
+      --akzent: #4f7cff;
+      --akzent-dunkel: #3a63d8;
+      --erledigt: #b6c0d0;
+      --linie: #e6e9ef;
+      --loeschen: #ff5c72;
+      /* Prioritäten (Teil 1 – Ampel, noch für Farbpunkte in Symbolen genutzt) */
+      --prio1: #ff5c72;
+      --prio2: #f2c200;
+      --prio3: #2ec77e;
+      /* Todo-Prioritäten – Rottöne: dunkel (hoch) / mittel / hell (niedrig) */
+      --tprio1: #9b1c25;
+      --tprio2: #e14b52;
+      --tprio3: #f4a9ad;
+      /* Prioritäten (Teil 2 – Grüntöne: dunkel / mittel / hell-pastell) */
+      --vprio1: #1b7e3f;
+      --vprio2: #4caf50;
+      --vprio3: #bfe8c8;
+      /* Noten-Farben (Teil 2): 1 = grün ... 5 = dunkelrot */
+      --note1: #2ecc71;
+      --note2: #9ccc3b;
+      --note3: #f2c200;
+      --note4: #ff8c42;
+      --note5: #c0392b;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: var(--hintergrund);
+      color: var(--text);
+    }
+
+    .app {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 16px 16px 40px 16px;
+    }
+
+    header { margin-bottom: 16px; }
+    header h1 { font-size: 26px; font-weight: 700; }
+    header p { color: var(--text-leise); font-size: 14px; margin-top: 2px; }
+
+    /* Ein "Bereich" (Todos bzw. Verhalten). Immer nur einer ist sichtbar. */
+    .view[hidden] { display: none; }
+
+    /* ============================================================
+       TAB-LEISTE unten
+       ============================================================ */
+    /* Tab-Leiste – jetzt in der Titelzeile neben der Überschrift */
+    .tabbar { display: flex; gap: 8px; }
+    .vh-titelzeile .tabbar { margin-left: auto; }   /* schiebt die Umschalter nach rechts */
+    /* KW-Modul mittig im freien Bereich, Umschalter ganz rechts (Verhalten + Kopfweh) */
+    .vh-titelzeile .woche-kopf ~ .tabbar { margin-left: auto; }
+    .teil-untertitel { color: var(--text-leise); font-size: 14px; margin: 0 0 14px 0; }
+    .tabbar button {
+      flex: 0 0 auto; cursor: pointer;
+      border: 1px solid var(--linie); border-radius: 12px; background: var(--karte);
+      padding: 6px 14px; color: var(--text-leise);
+      display: flex; align-items: center; gap: 6px; font-size: 14px;
+    }
+    .tabbar button .icon { font-size: 18px; line-height: 1; }
+    .tabbar button.aktiv { color: var(--akzent); border-color: var(--akzent); background: #eef3ff; }
+
+    /* ============================================================
+       TEIL 1 – TODOS
+       ============================================================ */
+    .eingabe { display: flex; gap: 8px; margin-bottom: 14px; }
+    .eingabe input {
+      flex: 1; border: 1px solid var(--linie); background: var(--karte);
+      border-radius: 12px; padding: 14px; font-size: 16px; color: var(--text); outline: none;
+    }
+    .eingabe input:focus { border-color: var(--akzent); }
+    .eingabe button {
+      border: none; background: var(--akzent); color: #fff; font-size: 24px; font-weight: 600;
+      width: 52px; border-radius: 12px; cursor: pointer;
+    }
+    .eingabe button:active { background: var(--akzent-dunkel); }
+
+    .steuerung { margin-bottom: 12px; padding: 0 2px; }
+    .zaehler { font-size: 13px; color: var(--text-leise); }
+    .schalterreihe { display: flex; flex-wrap: wrap; gap: 10px 18px; margin-top: 8px; }
+    .umschalter {
+      display: flex; align-items: center; gap: 6px; font-size: 13px;
+      color: var(--text-leise); cursor: pointer; user-select: none;
+    }
+    .legende { margin-top: 8px; font-size: 12px; color: var(--text-leise);
+      display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
+    .legende .punkt { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+
+    ul { list-style: none; }
+    li {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--karte); border: 1px solid var(--linie);
+      border-left: 5px solid var(--linie); border-radius: 12px;
+      padding: 9px 10px; margin-bottom: 6px;
+    }
+    li.prio1 { border-left-color: var(--tprio1); }
+    li.prio2 { border-left-color: var(--tprio2); }
+    li.prio3 { border-left-color: var(--tprio3); }
+
+    .anfasser { color: #c4ccd8; font-size: 18px; cursor: grab; touch-action: none; padding: 4px 2px; line-height: 1; }
+    .anfasser:active { cursor: grabbing; }
+
+    .haken { width: 24px; height: 24px; min-width: 24px; border: 2px solid var(--akzent); border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    .haken.aktiv { background: var(--akzent); }
+    .haken.aktiv::after { content: "✓"; color: #fff; font-size: 14px; font-weight: 700; }
+
+    .inhalt { flex: 1; min-width: 0; }
+    .inhalt .text { font-size: 16px; line-height: 1.3; word-break: break-word; cursor: pointer; }
+    .inhalt .datum { font-size: 12px; color: var(--text-leise); margin-top: 2px; }
+    li.fertig .text { text-decoration: line-through; color: var(--erledigt); }
+    .todo-text-input { width: 100%; border: 1px solid var(--akzent); border-radius: 8px;
+      padding: 6px 8px; font-size: 16px; font-family: inherit; color: var(--text); background: #fff; outline: none; }
+
+    /* Priorität als runder Farbpunkt mit Zahl (1 dunkelrot … 3 hellrot) */
+    .prio { width: 20px; height: 20px; min-width: 20px; border-radius: 50%; cursor: pointer; user-select: none;
+      display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+    .prio.p1 { background: var(--tprio1); color: #fff; }
+    .prio.p2 { background: var(--tprio2); color: #fff; }
+    .prio.p3 { background: var(--tprio3); color: #7a1720; }
+
+    .loeschen { border: none; background: transparent; color: var(--erledigt); font-size: 20px; cursor: pointer; padding: 0 2px; }
+    .loeschen:active { color: var(--loeschen); }
+
+    .gruppe { background: transparent; border: none; padding: 14px 4px 4px 4px; font-size: 13px; font-weight: 700;
+      color: var(--text-leise); display: flex; align-items: center; gap: 8px; }
+    .gruppe .punkt { width: 11px; height: 11px; border-radius: 50%; }
+
+    li.zieht { opacity: 0.5; }
+    .leer { text-align: center; color: var(--text-leise); padding: 40px 20px; font-size: 15px; background: transparent; border: none; }
+
+    /* ============================================================
+       TEIL 2 – VERHALTENS-TRACKER
+       ============================================================ */
+    /* Hinweis "Handy quer drehen" – nur im Hochformat sichtbar */
+    .quer-hinweis {
+      display: none;
+      background: #eaf0ff; color: var(--akzent-dunkel);
+      border: 1px solid #d3e0ff; border-radius: 12px;
+      padding: 10px 14px; font-size: 14px; margin-bottom: 14px; text-align: center;
+    }
+    @media (orientation: portrait) {
+      .quer-hinweis { display: block; }
+    }
+
+    /* Titelzeile: Überschrift + "Wo"-Auswahl links, Wochen-Navigation rechts */
+    .vh-titelzeile { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; margin-bottom: 10px; }
+    .vh-titelzeile h1 { font-size: 22px; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .vh-titelzeile .woche-kopf { margin-left: auto; }   /* schiebt die KW nach rechts */
+    .vh-start-select {
+      font-size: 16px; padding: 8px 10px; border: 1px solid var(--linie);
+      border-radius: 8px; background: var(--karte); color: var(--text); flex: 0 0 auto;
+    }
+
+    /* Kopf-Optionen: Wochenstart + Erledigte ausblenden */
+    .vh-optionen { display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+      margin-bottom: 12px; font-size: 13px; color: var(--text-leise); }
+    .vh-optionen select {
+      font-size: 14px; padding: 5px 8px; border: 1px solid var(--linie);
+      border-radius: 8px; background: var(--karte); color: var(--text); margin-left: 4px;
+    }
+
+    /* Wochen-Navigation (jetzt in der Titelzeile) */
+    .woche-kopf { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+    .woche-kopf button {
+      width: 32px; height: 32px; border: 1px solid var(--linie); background: var(--karte);
+      border-radius: 9px; font-size: 19px; color: var(--text); cursor: pointer; line-height: 1; flex: 0 0 auto;
+    }
+    .woche-kopf button:active { background: var(--hintergrund); }
+    .woche-titel { text-align: center; font-weight: 700; font-size: 14px; min-width: 92px; }
+    .woche-titel small { display: block; font-weight: 400; color: var(--text-leise); font-size: 11px; margin-top: 1px; }
+
+    /* Das Raster: jede Zeile ist EIN Flex-Element (nötig fürs Verschieben) */
+    .vh-gitter-wrap { overflow-x: auto; touch-action: pan-y; }  /* pan-y: senkrecht scrollen ok, waagrecht = Wischen */
+    .vh-gitter { min-width: 520px; }
+    .vh-kopfzeile, .vh-zeile { display: flex; gap: 3px; margin-bottom: 3px; align-items: stretch; }
+
+    /* Kopf: leere Fläche über der Beschriftung + 7 Tagesköpfe (je 42px) */
+    .vh-kopf-spacer { flex: 1 1 150px; min-width: 150px; }
+    .vh-kopf { flex: 0 0 42px; width: 42px; text-align: center; font-size: 10px;
+      color: var(--text-leise); padding: 2px 0; line-height: 1.2; }
+    .vh-kopf b { display: block; font-size: 11px; color: var(--text); }
+    .vh-kopf.heute, .vh-kopf.heute b { color: var(--akzent); }
+
+    /* Beschriftungs-Zelle mit Anfasser, Haken, Priorität, Text, Löschen */
+    .vh-label {
+      flex: 1 1 150px; min-width: 150px;
+      display: flex; align-items: center; gap: 6px;
+      font-size: 13px; line-height: 1.2; padding: 4px 6px;
+      background: var(--karte); border: 1px solid var(--linie);
+      border-left: 5px solid var(--linie); border-radius: 6px;
+    }
+    .vh-label.prio1 { border-left-color: var(--vprio1); }
+    .vh-label.prio2 { border-left-color: var(--vprio2); }
+    .vh-label.prio3 { border-left-color: var(--vprio3); }
+    /* Beschriftung einzeilig; zu langer Text wird mit … abgeschnitten */
+    .vh-label .vh-text { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .vh-label.fertig .vh-text { text-decoration: line-through; color: var(--erledigt); }
+
+    .vh-anfasser { color: #c4ccd8; font-size: 16px; cursor: grab; touch-action: none; line-height: 1; }
+    .vh-anfasser:active { cursor: grabbing; }
+    .vh-check { width: 16px; height: 16px; min-width: 16px; border: 1.5px solid #c4ccd8;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    .vh-check.aktiv { background: var(--akzent); border-color: var(--akzent); }
+    .vh-check.aktiv::after { content: "✓"; color: #fff; font-size: 10px; font-weight: 700; }
+    /* Eingabefeld beim Benennen eines neuen/umbenannten Verhaltens */
+    .vh-text-input { flex: 1; min-width: 0; border: 1px solid var(--akzent); border-radius: 6px;
+      padding: 3px 6px; font-size: 13px; font-family: inherit; color: var(--text); background: #fff; outline: none; }
+    /* Priorität als runder Farbpunkt mit Zahl (1 dunkelgrün … 3 hellgrün) */
+    .vh-prio { width: 20px; height: 20px; min-width: 20px; border-radius: 50%; cursor: pointer; user-select: none;
+      display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+    .vh-prio.p1 { background: var(--vprio1); color: #fff; }
+    .vh-prio.p2 { background: var(--vprio2); color: #fff; }
+    .vh-prio.p3 { background: var(--vprio3); color: #14512a; }
+    .vh-del { border: none; background: transparent; color: var(--erledigt);
+      font-size: 16px; cursor: pointer; padding: 0 2px; line-height: 1; }
+    .vh-del:active { color: var(--loeschen); }
+
+    .vh-zeile.zieht { opacity: 0.5; }
+
+    .vh-zelle {
+      position: relative;
+      flex: 0 0 42px; width: 42px;
+      display: flex; align-items: center; justify-content: center;
+      min-height: 30px; border-radius: 6px; font-weight: 700; font-size: 13px; cursor: pointer;
+    }
+    /* Ø-Spalte am Wochenanfang (Schnitt je Zeile) – etwas abgesetzt durch margin-right */
+    .vh-spalte-schnitt { flex: 0 0 42px; width: 42px; margin-right: 8px; font-size: 12px; }
+    .vh-kopf.vh-spalte-schnitt { font-weight: 700; }
+    /* kleiner farbiger Punkt unten rechts, wenn zu diesem Tag eine Notiz existiert */
+    .notiz-punkt { position: absolute; right: 3px; bottom: 3px; width: 7px; height: 7px;
+      border-radius: 50%; background: var(--akzent); border: 1px solid #fff; }
+    .vh-zelle.g-leer { background: #eef1f5; color: transparent; }
+    .vh-zelle.g0 { background: #fff; color: var(--erledigt); border: 1px solid var(--linie); }
+    .vh-zelle.g1 { background: var(--note1); color: #0b3d1e; }
+    .vh-zelle.g2 { background: var(--note2); color: #2b3d0b; }
+    .vh-zelle.g3 { background: var(--note3); color: #5a4600; }
+    .vh-zelle.g4 { background: var(--note4); color: #5a2c00; }
+    .vh-zelle.g5 { background: var(--note5); color: #ffffff; }
+    /* Kopfwehtabletten: 0 = grün, ab 1 = dunkelrot */
+    .vh-zelle.tab-gruen { background: var(--note1); color: #0b3d1e; }
+    .vh-zelle.tab-rot { background: #b21f2d; color: #ffffff; }
+    /* schmälere KW-Spalte (feste Breite statt mitwachsend) */
+    .tab-kw-col { flex: 0 0 168px; min-width: 168px; width: 168px; }
+    .tab-kw-col .vh-text { font-size: 12px; }
+
+    /* Rockhörner-Feier bei 0 Tabletten 🤘 */
+    .rockhorn-overlay { position: fixed; inset: 0; pointer-events: none; z-index: 9999; overflow: hidden; }
+    .rockhorn { position: absolute; will-change: transform, opacity; animation: rockhorn-fly 1.9s ease-out forwards; }
+    @keyframes rockhorn-fly {
+      0%   { transform: translateY(0) translateX(0) rotate(0deg) scale(0.5); opacity: 0; }
+      12%  { opacity: 1; }
+      100% { transform: translateY(var(--fly-y)) translateX(var(--fly-x)) rotate(var(--fly-rot)) scale(1.25); opacity: 0; }
+    }
+    /* die heutige Spalte etwas hervorheben */
+    .vh-zelle.heute { box-shadow: 0 0 0 2px var(--akzent) inset; }
+
+    /* Durchschnittszeile ganz unten */
+    .vh-schnittzeile { margin-top: 6px; }
+    .vh-schnitt-label { border-left-color: var(--linie) !important; font-weight: 700; color: var(--text-leise); }
+    .vh-schnittzeile .vh-zelle { font-size: 12px; }
+
+    /* Aktions-Knöpfe (+ und Auge) in der Titelzeile */
+    .vh-kopf-btn {
+      width: 34px; height: 34px; padding: 0; border: 1px solid var(--linie); background: var(--karte);
+      border-radius: 10px; font-size: 18px; line-height: 1; color: var(--text); cursor: pointer;
+      display: flex; align-items: center; justify-content: center; flex: 0 0 auto;
+    }
+    .vh-kopf-btn:active { background: var(--hintergrund); }
+    .vh-kopf-btn.plus { background: var(--akzent); border-color: var(--akzent); color: #fff; font-size: 18px; font-weight: 600; }
+    .vh-auge.aktiv { background: #eef3ff; border-color: var(--akzent); }
+
+    .vh-legende { margin-top: 14px; font-size: 12px; color: var(--text-leise);
+      display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; }
+    .vh-legende .chip {
+      display: inline-flex; align-items: center; gap: 5px;
+    }
+    .vh-legende .kaestchen { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
+    .vh-schnitt { margin-top: 12px; font-size: 14px; color: var(--text); background: var(--karte);
+      border: 1px solid var(--linie); border-radius: 12px; padding: 12px 14px; }
+    .vh-schnitt b { color: var(--akzent-dunkel); }
+
+    /* ===== Auswahl-Fenster (Picker) für die Note ===== */
+    .picker-overlay {
+      position: fixed; inset: 0; background: rgba(20,28,40,.45);
+      display: flex; align-items: flex-end; justify-content: center; z-index: 50;
+    }
+    .picker-overlay[hidden] { display: none; }
+    .picker-box {
+      background: var(--karte); width: 100%; max-width: 520px;
+      border-radius: 18px 18px 0 0; padding: 18px 16px calc(16px + env(safe-area-inset-bottom));
+    }
+    .picker-titel { font-size: 15px; font-weight: 700; text-align: center; margin-bottom: 4px; }
+    .picker-unter { font-size: 12px; color: var(--text-leise); text-align: center; margin-bottom: 14px; }
+    .picker-knoepfe { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .picker-knoepfe button {
+      padding: 14px 8px; border: none; border-radius: 12px; font-size: 14px; font-weight: 700;
+      cursor: pointer; text-align: center;
+    }
+    .picker-notiz { width: 100%; margin-top: 12px; padding: 12px 14px; border: 1px solid var(--linie);
+      border-radius: 12px; font-size: 16px; color: var(--text); outline: none; background: var(--karte); }
+    .picker-notiz:focus { border-color: var(--akzent); }
+
+    /* kleines, mehrzeiliges Notizfeld: kleine Schrift, fixe Höhe, scrollbar */
+    .picker-notiz-gross { flex: 1; margin: 0; resize: none; overflow-y: auto; font-size: 12px; line-height: 1.4; }
+
+    /* Eingabe-Zeile: Notizfeld links, Auswahl (Rollrad bzw. Noten) rechts */
+    .tabpicker-eingabe, .vh-picker-eingabe { display: flex; gap: 10px; align-items: stretch; margin: 10px 0 4px; }
+    .tabpicker-eingabe .picker-notiz-gross { min-height: 96px; }
+    .vh-picker-eingabe .picker-notiz-gross { min-height: 200px; }
+
+    /* kleines, schmales Rollrad rechts neben dem Notizfeld */
+    .rollrad { position: relative; height: 96px; width: 56px; flex: 0 0 56px; }
+    .rollrad-scroll {
+      height: 100%; overflow-y: scroll; scroll-snap-type: y mandatory;
+      -webkit-overflow-scrolling: touch; scrollbar-width: none; text-align: center;
+    }
+    .rollrad-scroll::-webkit-scrollbar { display: none; }
+    .rollrad-item {
+      height: 32px; line-height: 32px; scroll-snap-align: center;
+      font-size: 16px; font-weight: 700; color: var(--text-leise);
+      transition: color .15s, transform .15s;
+    }
+    .rollrad-item.aktiv { color: var(--akzent); transform: scale(1.2); }
+    .rollrad-spacer { height: 32px; }
+    .rollrad-marker {
+      position: absolute; left: 2px; right: 2px; top: calc(50% - 16px); height: 32px;
+      border-radius: 8px; background: rgba(79,124,255,0.08);
+      border-top: 2px solid var(--akzent); border-bottom: 2px solid var(--akzent); pointer-events: none;
+    }
+
+    /* Kopfweh-Eingabefenster über die volle Bildschirmhöhe */
+    #tab-picker .picker-box {
+      height: 100%; border-radius: 0; display: flex; flex-direction: column;
+      padding-top: calc(16px + env(safe-area-inset-top));
+    }
+    #tab-picker .tabpicker-eingabe { flex: 1; min-height: 0; margin-bottom: 10px; }
+    #tab-picker .rollrad { height: auto; align-self: stretch; }
+
+    /* senkrechte Noten-Spalte (1–5, n.z.) rechts im Verhalten-Fenster */
+    .picker-knoepfe-spalte { display: flex; flex-direction: column; gap: 6px; flex: 0 0 60px; }
+    .picker-knoepfe-spalte button { flex: 1; border: none; border-radius: 10px; font-size: 16px; font-weight: 800; cursor: pointer; }
+    .picker-zusatz { display: flex; gap: 8px; margin-top: 8px; }
+    .picker-zusatz button {
+      flex: 1; padding: 12px; border-radius: 12px; border: 1px solid var(--linie);
+      background: var(--karte); font-size: 14px; cursor: pointer; color: var(--text);
+    }
+
+    /* Backup-Fenster */
+    .backup-knoepfe { display: flex; flex-direction: column; gap: 8px; margin: 14px 0 6px; }
+    .backup-knoepfe button {
+      padding: 14px; border: 1px solid var(--linie); background: var(--karte);
+      border-radius: 12px; font-size: 15px; cursor: pointer; color: var(--text); text-align: left;
+    }
+    .backup-knoepfe button:active { background: var(--hintergrund); }
+    /* Backup-Zeile unter dem Verhaltens-Tracker-Titel */
+    .vh-backup-zeile { margin: -2px 0 12px 0; }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+
+    <!-- ======================= BEREICH 1: TODOS ======================= -->
+    <div id="view-todos" class="view">
+      <div class="vh-titelzeile">
+        <h1>Todo-Tracker</h1>
+        <button id="todo-hinzu" class="vh-kopf-btn plus" title="Neue Aufgabe" aria-label="Neue Aufgabe">+</button>
+        <button id="todo-sortieren" class="vh-kopf-btn" title="Nach Priorität sortieren" aria-label="Nach Priorität sortieren">⇅</button>
+        <button id="todo-ausblenden" class="vh-kopf-btn vh-auge" title="Erledigte ein-/ausblenden" aria-label="Erledigte ein-/ausblenden">👁</button>
+        <button class="vh-kopf-btn backup-oeffnen" title="Backup" aria-label="Backup">💾</button>
+        <nav class="tabbar">
+          <button data-view="todos" class="aktiv" title="Todo-Tracker"><span class="icon">✓</span></button>
+          <button data-view="verhalten" title="Verhaltens-Tracker"><span class="icon">🎯</span></button>
+          <button data-view="tabletten" title="Kopfweh-Tracker"><span class="icon">💊</span></button>
+        </nav>
+      </div>
+
+      <ul id="liste"></ul>
+    </div>
+
+    <!-- ==================== BEREICH 2: VERHALTEN ==================== -->
+    <div id="view-verhalten" class="view" hidden>
+      <div class="vh-titelzeile">
+        <h1>Verhaltens-Tracker</h1>
+        <button id="vh-hinzu" class="vh-kopf-btn plus" aria-label="Neues Verhalten">+</button>
+        <button id="vh-ausblenden" class="vh-kopf-btn vh-auge" title="Erledigte ein-/ausblenden" aria-label="Erledigte ein-/ausblenden">👁</button>
+        <button id="vh-sortieren" class="vh-kopf-btn" title="Nach Priorität sortieren" aria-label="Nach Priorität sortieren">⇅</button>
+        <button class="vh-kopf-btn backup-oeffnen" title="Backup" aria-label="Backup">💾</button>
+        <select id="vh-starttag" class="vh-start-select" aria-label="Woche beginnt am">
+          <option value="0">Mo</option>
+          <option value="1">Di</option>
+          <option value="2">Mi</option>
+          <option value="3">Do</option>
+          <option value="4">Fr</option>
+          <option value="5">Sa</option>
+        </select>
+        <div class="woche-kopf">
+          <button id="vh-zurueck" aria-label="Woche zurück">‹</button>
+          <div class="woche-titel" id="vh-woche-titel"></div>
+          <button id="vh-vor" aria-label="Woche vor">›</button>
+        </div>
+        <nav class="tabbar">
+          <button data-view="todos" title="Todos"><span class="icon">✓</span></button>
+          <button data-view="verhalten" class="aktiv" title="Verhaltens-Tracker"><span class="icon">🎯</span></button>
+          <button data-view="tabletten" title="Kopfweh-Tracker"><span class="icon">💊</span></button>
+        </nav>
+      </div>
+
+      <div class="quer-hinweis">📱↻ Tipp: Dreh dein Handy quer für die beste Übersicht.</div>
+
+      <div class="vh-gitter-wrap" id="vh-gitter-wrap">
+        <div class="vh-gitter" id="vh-gitter"></div>
+      </div>
+
+      <div class="vh-legende" id="vh-legende"></div>
+      <div class="vh-schnitt" id="vh-schnitt"></div>
+    </div>
+
+    <!-- ==================== BEREICH 3: KOPFWEHTABLETTEN ==================== -->
+    <div id="view-tabletten" class="view" hidden>
+      <div class="vh-titelzeile tab-kopf">
+        <h1>Kopfweh-Tracker</h1>
+        <button class="vh-kopf-btn backup-oeffnen" title="Backup" aria-label="Backup">💾</button>
+        <div class="woche-kopf">
+          <button id="tab-zurueck" aria-label="Ältere Wochen">‹</button>
+          <div class="woche-titel" id="tab-titel"></div>
+          <button id="tab-vor" aria-label="Neuere Wochen">›</button>
+        </div>
+        <nav class="tabbar">
+          <button data-view="todos" title="Todos"><span class="icon">✓</span></button>
+          <button data-view="verhalten" title="Verhaltentracker"><span class="icon">🎯</span></button>
+          <button data-view="tabletten" class="aktiv" title="Kopfwehtabletten"><span class="icon">💊</span></button>
+        </nav>
+      </div>
+
+      <div class="quer-hinweis">📱↻ Tipp: Dreh dein Handy quer für die beste Übersicht.</div>
+
+      <div class="vh-gitter-wrap">
+        <div class="vh-gitter" id="tab-gitter"></div>
+      </div>
+
+      <div class="vh-legende" id="tab-legende"></div>
+      <div class="vh-schnitt" id="tab-schnitt"></div>
+    </div>
+
+  </div>
+
+  <!-- Auswahl-Fenster für die Tagesnote (wird per JS gefüllt) -->
+  <div id="vh-picker" class="picker-overlay" hidden>
+    <div class="picker-box">
+      <div class="picker-titel" id="picker-titel"></div>
+      <div class="picker-unter" id="picker-unter"></div>
+      <div class="vh-picker-eingabe">
+        <textarea id="picker-notiz" class="picker-notiz picker-notiz-gross" placeholder="Notiz (optional)…" maxlength="300"></textarea>
+        <div class="picker-knoepfe-spalte" id="picker-knoepfe"></div>
+      </div>
+      <div class="picker-zusatz">
+        <button id="picker-speichern">Notiz speichern</button>
+        <button id="picker-leeren">Eintrag löschen</button>
+        <button id="picker-abbrechen">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Eingabe-Fenster für Kopfwehtabletten (Anzahl + Notiz) -->
+  <div id="tab-picker" class="picker-overlay" hidden>
+    <div class="picker-box">
+      <div class="picker-titel">Kopfwehtabletten</div>
+      <div class="picker-unter" id="tabpicker-unter"></div>
+      <div class="tabpicker-eingabe">
+        <textarea id="tabpicker-notiz" class="picker-notiz picker-notiz-gross" placeholder="Notiz (optional)…" maxlength="300"></textarea>
+        <div class="rollrad" title="Anzahl Tabletten">
+          <div class="rollrad-marker"></div>
+          <div class="rollrad-scroll" id="tab-rollrad-scroll"></div>
+        </div>
+      </div>
+      <div class="picker-zusatz">
+        <button id="tabpicker-speichern">Speichern</button>
+        <button id="tabpicker-leeren">Eintrag löschen</button>
+        <button id="tabpicker-abbrechen">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Backup-Fenster -->
+  <div id="backup-dialog" class="picker-overlay" hidden>
+    <div class="picker-box">
+      <div class="picker-titel">Backup</div>
+      <div class="picker-unter">Alle Daten (Todos, Verhalten, Kopfweh) sichern oder wiederherstellen.</div>
+      <div class="backup-knoepfe">
+        <button id="backup-export">💾 Als Datei sichern</button>
+        <button id="backup-import">📂 Aus Datei wiederherstellen</button>
+        <button id="backup-email">✉️ Per E-Mail sichern</button>
+      </div>
+      <div class="picker-zusatz">
+        <button id="backup-schliessen">Schließen</button>
+      </div>
+    </div>
+    <input type="file" id="backup-datei" accept="application/json,.json" style="display:none">
+  </div>
+
+  <script>
+  /* ================================================================
+     TAB-UMSCHALTUNG (welcher Bereich ist sichtbar?)
+     ================================================================ */
+  var tabKnoepfe = document.querySelectorAll(".tabbar button");
+  var views = {
+    todos: document.getElementById("view-todos"),
+    verhalten: document.getElementById("view-verhalten"),
+    tabletten: document.getElementById("view-tabletten")
+  };
+
+  function zeigeView(name) {
+    for (var schluessel in views) {
+      views[schluessel].hidden = (schluessel !== name);
+    }
+    tabKnoepfe.forEach(function (b) { b.classList.toggle("aktiv", b.dataset.view === name); });
+    if (name === "verhalten") zeichneVerhalten();
+    if (name === "tabletten") zeichneTabletten();
+  }
+  tabKnoepfe.forEach(function (b) {
+    b.onclick = function () { zeigeView(b.dataset.view); };
+  });
+
+
+  /* ================================================================
+     TEIL 1 – TODO-LISTE
+     ================================================================ */
+  var beispielTodos = [
+    "Im Fitnessstudio anmelden",
+    "Fixtermin mit Gerhard Wolf vereinbaren",
+    "Trainingsplan erstellen lassen",
+    "Auto-Login bei Facebook deaktivieren",
+    "Physio verschreiben lassen",
+    "Ausgleich suchen (Yoga)"
+  ];
+  var PRIO_SYMBOL = { 1: "!!!", 2: "!!", 3: "!" };
+  var PRIO_NAME   = { 1: "Hohe Priorität", 2: "Mittlere Priorität", 3: "Niedrige Priorität" };
+  var SPEICHER_TODOS = "change-app-todos";
+
+  var todos = ladeTodos();
+  var erledigteAusblenden = false;
+  var gruppiert = false;
+  var aktuellGezogen = null;
+  var todoEditId = null;   // Aufgabe, die gerade benannt/umbenannt wird
+
+  function ladeTodos() {
+    var gespeichert = localStorage.getItem(SPEICHER_TODOS);
+    if (gespeichert) {
+      var liste = JSON.parse(gespeichert);
+      liste.forEach(function (t) {
+        if (t.prioritaet === undefined) t.prioritaet = 2;
+        if (t.erledigtAm === undefined) t.erledigtAm = null;
+      });
+      return liste;
+    }
+    return beispielTodos.map(function (text) {
+      return { id: neueId(), text: text, fertig: false, prioritaet: 2, erledigtAm: null };
+    });
+  }
+  function speichernTodos() { localStorage.setItem(SPEICHER_TODOS, JSON.stringify(todos)); }
+  function neueId() { return Date.now() + "-" + Math.floor(Math.random() * 1000); }
+  function todoNachId(id) { return todos.find(function (t) { return t.id === id; }); }
+
+  function heuteText() {
+    var d = new Date();
+    return ("0" + d.getDate()).slice(-2) + "." + ("0" + (d.getMonth() + 1)).slice(-2) + "." + d.getFullYear();
+  }
+
+  var listeElement = document.getElementById("liste");
+
+  // + legt eine neue Aufgabe an und macht sie direkt beschreibbar (kein Eingabefeld nötig)
+  function hinzufuegen() {
+    var t = { id: neueId(), text: "", fertig: false, prioritaet: 2, erledigtAm: null };
+    todos.unshift(t);
+    todoEditId = t.id;
+    zeichnen();
+    var inp = document.querySelector('#liste li[data-id="' + t.id + '"] .todo-text-input');
+    if (inp) inp.focus();
+  }
+  function todoBearbeiten(id) {
+    todoEditId = id;
+    zeichnen();
+    var inp = document.querySelector('#liste li[data-id="' + id + '"] .todo-text-input');
+    if (inp) { inp.focus(); inp.select(); }
+  }
+  function todoTextSpeichern(id, wert) {
+    var t = todoNachId(id);
+    if (!t) return;
+    var text = (wert || "").trim();
+    if (text === "") { todos = todos.filter(function (x) { return x.id !== id; }); }
+    else { t.text = text; }
+    todoEditId = null;
+    speichernTodos(); zeichnen();
+  }
+  function umschalten(id) {
+    var t = todoNachId(id); if (!t) return;
+    t.fertig = !t.fertig;
+    t.erledigtAm = t.fertig ? heuteText() : null;
+    speichernTodos(); zeichnen();
+    if (t.fertig) rockhornsShow();   // 🤘 Feier beim Erledigen
+  }
+  function prioWechseln(id) {
+    var t = todoNachId(id); if (!t) return;
+    t.prioritaet = (t.prioritaet % 3) + 1;
+    speichernTodos(); zeichnen();
+  }
+  function loeschen(id) {
+    todos = todos.filter(function (t) { return t.id !== id; });
+    speichernTodos(); zeichnen();
+  }
+  function istSichtbar(t) { return erledigteAusblenden ? !t.fertig : true; }
+  function erledigteNachUnten(arr) {
+    return arr.slice().sort(function (a, b) { return a.fertig === b.fertig ? 0 : (a.fertig ? 1 : -1); });
+  }
+
+  function baueZeile(t, ziehbar) {
+    var li = document.createElement("li");
+    li.className = "prio" + t.prioritaet + (t.fertig ? " fertig" : "");
+    li.setAttribute("data-id", t.id);
+
+    if (ziehbar) {
+      var anfasser = document.createElement("div");
+      anfasser.className = "anfasser"; anfasser.textContent = "☰";
+      anfasser.addEventListener("pointerdown", function (e) { ziehenStart(e, li); });
+      li.appendChild(anfasser);
+    }
+    var prio = document.createElement("div"); prio.className = "prio p" + t.prioritaet;
+    prio.textContent = t.prioritaet;
+    prio.title = PRIO_NAME[t.prioritaet];
+    prio.onclick = function () { prioWechseln(t.id); };
+    li.appendChild(prio);
+
+    var inhalt = document.createElement("div"); inhalt.className = "inhalt";
+    if (t.id === todoEditId) {
+      var input = document.createElement("input");
+      input.type = "text"; input.className = "todo-text-input"; input.value = t.text;
+      input.maxLength = 120; input.placeholder = "Aufgabe eingeben…";
+      input.onkeydown = function (e) { if (e.key === "Enter") { e.preventDefault(); input.blur(); } };
+      input.onblur = function () { todoTextSpeichern(t.id, input.value); };
+      inhalt.appendChild(input);
+    } else {
+      var textEl = document.createElement("div"); textEl.className = "text"; textEl.textContent = t.text;
+      textEl.onclick = function () { umschalten(t.id); };
+      inhalt.appendChild(textEl);
+      if (t.fertig && t.erledigtAm) {
+        var datumEl = document.createElement("div"); datumEl.className = "datum";
+        datumEl.textContent = "✓ erledigt am " + t.erledigtAm; inhalt.appendChild(datumEl);
+      }
+    }
+    li.appendChild(inhalt);
+
+    var haken = document.createElement("div");
+    haken.className = "haken" + (t.fertig ? " aktiv" : "");
+    haken.onclick = function () { umschalten(t.id); };
+    li.appendChild(haken);
+
+    var loeschKnopf = document.createElement("button"); loeschKnopf.className = "loeschen"; loeschKnopf.textContent = "×";
+    loeschKnopf.onclick = function () { loeschen(t.id); };
+    li.appendChild(loeschKnopf);
+    return li;
+  }
+
+  function zeichnen() {
+    listeElement.innerHTML = "";
+    var sichtbare = todos.filter(istSichtbar);
+    if (sichtbare.length === 0) {
+      var hinweis = document.createElement("li"); hinweis.className = "leer";
+      hinweis.textContent = erledigteAusblenden ? "Alles erledigt – super! 🎉" : "Noch keine Aufgaben. Tippe oben auf +.";
+      listeElement.appendChild(hinweis); return;
+    }
+    if (gruppiert) {
+      [1, 2, 3].forEach(function (p) {
+        var inGruppe = sichtbare.filter(function (t) { return t.prioritaet === p; });
+        if (inGruppe.length === 0) return;
+        var kopf = document.createElement("li"); kopf.className = "gruppe";
+        var punkt = document.createElement("span"); punkt.className = "punkt";
+        punkt.style.background = "var(--prio" + p + ")"; kopf.appendChild(punkt);
+        kopf.appendChild(document.createTextNode(PRIO_NAME[p] + " (" + inGruppe.length + ")"));
+        listeElement.appendChild(kopf);
+        erledigteNachUnten(inGruppe).forEach(function (t) { listeElement.appendChild(baueZeile(t, false)); });
+      });
+    } else {
+      erledigteNachUnten(sichtbare).forEach(function (t) { listeElement.appendChild(baueZeile(t, true)); });
+    }
+  }
+
+  /* Verschieben per Ziehen */
+  function ziehenStart(e, li) {
+    if (gruppiert) return;
+    e.preventDefault();
+    aktuellGezogen = li; li.classList.add("zieht");
+    document.addEventListener("pointermove", ziehenBewegung);
+    document.addEventListener("pointerup", ziehenEnde);
+  }
+  function ziehenBewegung(e) {
+    e.preventDefault();
+    var danach = elementNachPosition(e.clientY);
+    if (danach == null) listeElement.appendChild(aktuellGezogen);
+    else listeElement.insertBefore(aktuellGezogen, danach);
+  }
+  function ziehenEnde() {
+    document.removeEventListener("pointermove", ziehenBewegung);
+    document.removeEventListener("pointerup", ziehenEnde);
+    if (aktuellGezogen) aktuellGezogen.classList.remove("zieht");
+    aktuellGezogen = null;
+    uebernimmReihenfolgeAusAnzeige(); speichernTodos(); zeichnen();
+  }
+  function elementNachPosition(y) {
+    var zeilen = listeElement.querySelectorAll("li[data-id]:not(.zieht)");
+    for (var i = 0; i < zeilen.length; i++) {
+      var kasten = zeilen[i].getBoundingClientRect();
+      if (y < kasten.top + kasten.height / 2) return zeilen[i];
+    }
+    return null;
+  }
+  function uebernimmReihenfolgeAusAnzeige() {
+    var domIds = [];
+    listeElement.querySelectorAll("li[data-id]").forEach(function (li) { domIds.push(li.getAttribute("data-id")); });
+    var warteschlange = domIds.slice();
+    todos = todos.map(function (t) { return istSichtbar(t) ? todoNachId(warteschlange.shift()) : t; });
+  }
+
+  document.getElementById("todo-hinzu").onclick = hinzufuegen;
+  document.getElementById("todo-sortieren").onclick = function () {
+    todos.sort(function (a, b) { return a.prioritaet - b.prioritaet; });
+    speichernTodos(); zeichnen();
+  };
+  var todoAugeBtn = document.getElementById("todo-ausblenden");
+  function todoAugeAktualisieren() {
+    todoAugeBtn.textContent = erledigteAusblenden ? "🙈" : "👁";
+    todoAugeBtn.classList.toggle("aktiv", erledigteAusblenden);
+  }
+  todoAugeBtn.addEventListener("click", function () {
+    erledigteAusblenden = !erledigteAusblenden; todoAugeAktualisieren(); zeichnen();
+  });
+  todoAugeAktualisieren();
+  zeichnen();
+
+
+  /* ================================================================
+     TEIL 2 – VERHALTENS-TRACKER
+     ----------------------------------------------------------------
+     Datenmodell:
+       behaviors = [ {id, text}, ... ]   (die Zeilen)
+       ratings   = { "verhaltenId|2026-07-29": note, ... }
+                   note: 0 (n.z.), 1..5;  kein Eintrag = noch nicht bewertet
+       wochenOffset = 0 (aktuelle Woche), -1 (letzte), +1 (nächste) ...
+     ================================================================ */
+  var beispielVerhalten = [
+    "Handy nicht am WC",
+    "Handy nicht beim Autofahren",
+    "Handy nicht im Wohnzimmer",
+    "Mikropausen alle 1,5 Std",
+    "Mittagspause länger",
+    "Mittagspause nicht am Schreibtisch",
+    "Im IST arbeiten",
+    "Fixe Zeiten für E-Mail"
+  ];
+  var NOTE_NAME = { 0: "nicht zutreffend", 1: "sehr gut", 2: "gut", 3: "befriedigend", 4: "genügend", 5: "nicht genügend" };
+  var WOCHENTAGE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
+  var SPEICHER_VERHALTEN = "change-app-behaviors";
+  var SPEICHER_RATINGS = "change-app-ratings";
+  var SPEICHER_STARTTAG = "change-app-starttag";
+  var SPEICHER_NOTIZEN = "change-app-notizen";
+
+  var behaviors = ladeVerhalten();
+  var ratings = ladeRatings();
+  var noteTexte = localStorage.getItem(SPEICHER_NOTIZEN) ? JSON.parse(localStorage.getItem(SPEICHER_NOTIZEN)) : {};
+  var wochenOffset = 0;
+  var vhAusblenden = false;
+  var vhGezogen = null;
+  var vhEditId = null;   // id des Verhaltens, das gerade benannt/umbenannt wird
+  // An welchem Wochentag beginnt die Woche? 0 = Montag ... 5 = Samstag
+  var startTag = parseInt(localStorage.getItem(SPEICHER_STARTTAG) || "0", 10);
+
+  function behaviorNachId(id) { return behaviors.find(function (b) { return b.id === id; }); }
+  function vhIstSichtbar(b) { return vhAusblenden ? !b.fertig : true; }
+
+  function ladeVerhalten() {
+    var g = localStorage.getItem(SPEICHER_VERHALTEN);
+    if (g) {
+      var liste = JSON.parse(g);
+      // fehlende Felder bei alten Daten ergänzen
+      liste.forEach(function (b) {
+        if (b.fertig === undefined) b.fertig = false;
+        if (b.prioritaet === undefined) b.prioritaet = 2;
+      });
+      return liste;
+    }
+    return beispielVerhalten.map(function (text) { return { id: neueId(), text: text, fertig: false, prioritaet: 2 }; });
+  }
+  function ladeRatings() {
+    var g = localStorage.getItem(SPEICHER_RATINGS);
+    return g ? JSON.parse(g) : {};
+  }
+  function speichernVerhalten() { localStorage.setItem(SPEICHER_VERHALTEN, JSON.stringify(behaviors)); }
+  function speichernRatings() { localStorage.setItem(SPEICHER_RATINGS, JSON.stringify(ratings)); }
+  function speichernNotizen() { localStorage.setItem(SPEICHER_NOTIZEN, JSON.stringify(noteTexte)); }
+  // Durchschnitt (nur echte Noten 1–5) über die angegebenen Tage für ein Verhalten; null wenn nichts bewertet.
+  function rowSchnitt(b, tage) {
+    var summe = 0, anzahl = 0;
+    tage.forEach(function (d) { var n = ratings[b.id + "|" + datumKey(d)]; if (n >= 1 && n <= 5) { summe += n; anzahl += 1; } });
+    return anzahl === 0 ? null : summe / anzahl;
+  }
+
+  /* ---- Datums-Helfer ---- */
+  // Erster Tag der Woche (je nach gewähltem Start-Wochentag). offset 0 = diese Woche.
+  function startDerWoche(offset) {
+    var d = new Date(); d.setHours(0, 0, 0, 0);
+    var heuteIdx = (d.getDay() + 6) % 7;            // Mo=0 ... So=6
+    var diff = (heuteIdx - startTag + 7) % 7;       // Tage seit dem letzten Start-Wochentag
+    d.setDate(d.getDate() - diff + offset * 7);
+    return d;
+  }
+  // Schlüssel-Datum wie "2026-07-29"
+  function datumKey(d) {
+    return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+  }
+  // "29.07."
+  function kurzDatum(d) { return ("0" + d.getDate()).slice(-2) + "." + ("0" + (d.getMonth() + 1)).slice(-2) + "."; }
+  // Kalenderwoche nach ISO 8601
+  function kalenderwoche(d) {
+    var t = new Date(d); t.setHours(0, 0, 0, 0);
+    t.setDate(t.getDate() + 3 - ((t.getDay() + 6) % 7));   // Donnerstag dieser Woche
+    var jan4 = new Date(t.getFullYear(), 0, 4);
+    return 1 + Math.round(((t - jan4) / 86400000 - 3 + ((jan4.getDay() + 6) % 7)) / 7);
+  }
+
+  var gitter = document.getElementById("vh-gitter");
+  var wochenTitel = document.getElementById("vh-woche-titel");
+  var schnittBox = document.getElementById("vh-schnitt");
+
+  // Die 7 Tage der aktuell gewählten Woche als Date-Liste
+  function tageDerWoche() {
+    var start = startDerWoche(wochenOffset);
+    var tage = [];
+    for (var i = 0; i < 7; i++) {
+      var d = new Date(start); d.setDate(start.getDate() + i); tage.push(d);
+    }
+    return tage;
+  }
+
+  function zeichneVerhalten() {
+    var tage = tageDerWoche();
+    var heuteKey = datumKey(new Date());
+
+    // --- Wochen-Titel: KW + Zeitraum ---
+    var kw = kalenderwoche(tage[0]);
+    wochenTitel.innerHTML = "KW " + kw +
+      "<small>" + kurzDatum(tage[0]) + " – " + kurzDatum(tage[6]) + tage[6].getFullYear() + "</small>";
+
+    // --- Raster aufbauen ---
+    gitter.innerHTML = "";
+
+    // Kopfzeile: leere Fläche über der Beschriftung + 7 Tages-Köpfe
+    var kopfzeile = document.createElement("div"); kopfzeile.className = "vh-kopfzeile";
+    var spacer = document.createElement("div"); spacer.className = "vh-kopf-spacer"; kopfzeile.appendChild(spacer);
+    // Überschrift der Ø-Spalte (Wochenschnitt je Zeile)
+    var oKopf = document.createElement("div"); oKopf.className = "vh-kopf vh-spalte-schnitt";
+    oKopf.innerHTML = "<b>Ø</b>Woche"; kopfzeile.appendChild(oKopf);
+    tage.forEach(function (d) {
+      var kopf = document.createElement("div");
+      kopf.className = "vh-kopf" + (datumKey(d) === heuteKey ? " heute" : "");
+      kopf.innerHTML = "<b>" + WOCHENTAGE[(d.getDay() + 6) % 7] + "</b>" + kurzDatum(d);
+      kopfzeile.appendChild(kopf);
+    });
+    gitter.appendChild(kopfzeile);
+
+    // sichtbare Verhalten (evtl. ohne die erledigten)
+    var sichtbare = behaviors.filter(vhIstSichtbar);
+    if (sichtbare.length === 0) {
+      var hinweis = document.createElement("div");
+      hinweis.style.padding = "24px 8px"; hinweis.style.textAlign = "center"; hinweis.style.color = "var(--text-leise)";
+      hinweis.textContent = (behaviors.length === 0)
+        ? "Noch kein Verhalten angelegt. Trag unten etwas ein."
+        : "Alle erledigten Verhalten sind ausgeblendet.";
+      gitter.appendChild(hinweis);
+    }
+
+    // Eine Zeile je Verhalten
+    sichtbare.forEach(function (b) { gitter.appendChild(baueVhZeile(b, tage, heuteKey)); });
+
+    // Durchschnittszeile am Ende: pro Tag der Schnitt über alle Verhalten
+    if (sichtbare.length > 0) gitter.appendChild(baueSchnittZeile(tage, heuteKey));
+
+    zeichneLegende();
+    zeichneWochenschnitt(tage);
+  }
+
+  // Baut eine Verhaltens-Zeile (Beschriftung + 7 Tageszellen) als EIN Element
+  function baueVhZeile(b, tage, heuteKey) {
+    var zeile = document.createElement("div");
+    zeile.className = "vh-zeile";
+    zeile.setAttribute("data-id", b.id);
+
+    var label = document.createElement("div");
+    label.className = "vh-label prio" + b.prioritaet + (b.fertig ? " fertig" : "");
+
+    // Anfasser zum Verschieben
+    var anfasser = document.createElement("div"); anfasser.className = "vh-anfasser"; anfasser.textContent = "☰";
+    anfasser.addEventListener("pointerdown", function (e) { vhZiehenStart(e, zeile); });
+    label.appendChild(anfasser);
+
+    // Priorität als runder Farbpunkt (antippen wechselt)
+    var prio = document.createElement("div"); prio.className = "vh-prio p" + b.prioritaet;
+    prio.textContent = b.prioritaet;
+    prio.title = PRIO_NAME[b.prioritaet];
+    prio.onclick = function () { vhPrioWechseln(b.id); };
+    label.appendChild(prio);
+
+    // Text – im Bearbeiten-Modus ein Eingabefeld direkt in der Zeile
+    if (b.id === vhEditId) {
+      var input = document.createElement("input");
+      input.type = "text"; input.className = "vh-text-input"; input.value = b.text;
+      input.maxLength = 60; input.placeholder = "Verhalten benennen…";
+      input.onkeydown = function (e) { if (e.key === "Enter") { e.preventDefault(); input.blur(); } };
+      input.onblur = function () { vhTextSpeichern(b.id, input.value); };
+      label.appendChild(input);
+    } else {
+      var text = document.createElement("span"); text.className = "vh-text"; text.textContent = b.text; text.title = b.text;
+      text.onclick = function () { vhBearbeiten(b.id); };   // Antippen = umbenennen
+      label.appendChild(text);
+    }
+
+    // Abhaken (klein und dezent, rechts vor dem Löschen)
+    var check = document.createElement("div"); check.className = "vh-check" + (b.fertig ? " aktiv" : "");
+    check.onclick = function () { vhUmschalten(b.id); };
+    label.appendChild(check);
+
+    // Löschen
+    var del = document.createElement("button"); del.className = "vh-del"; del.textContent = "×";
+    del.onclick = function () { verhaltenLoeschen(b.id); };
+    label.appendChild(del);
+
+    zeile.appendChild(label);
+
+    // Ø-Spalte am Wochenanfang: Schnitt dieser Zeile
+    var rs = rowSchnitt(b, tage);
+    var oZelle = document.createElement("div");
+    if (rs === null) {
+      oZelle.className = "vh-zelle vh-spalte-schnitt g-leer";
+    } else {
+      oZelle.className = "vh-zelle vh-spalte-schnitt g" + Math.round(rs);
+      oZelle.textContent = rs.toFixed(1).replace(".", ",");
+    }
+    zeile.appendChild(oZelle);
+
+    tage.forEach(function (d) {
+      var key = b.id + "|" + datumKey(d);
+      var note = ratings[key];
+      var zelle = document.createElement("div");
+      var klasse = (note === undefined) ? "g-leer" : "g" + note;
+      zelle.className = "vh-zelle " + klasse + (datumKey(d) === heuteKey ? " heute" : "");
+      zelle.textContent = (note === undefined) ? "" : (note === 0 ? "–" : note);
+      zelle.onclick = function () { pickerOeffnen(b, d); };
+      // farbiger Punkt unten rechts, wenn eine Notiz hinterlegt ist
+      if (noteTexte[key]) {
+        var punkt = document.createElement("span"); punkt.className = "notiz-punkt"; punkt.title = noteTexte[key];
+        zelle.appendChild(punkt);
+      }
+      zeile.appendChild(zelle);
+    });
+    return zeile;
+  }
+
+  // Durchschnittszeile: je Tag der Schnitt aller echten Noten (1–5) über alle Verhalten
+  function baueSchnittZeile(tage, heuteKey) {
+    var zeile = document.createElement("div");
+    zeile.className = "vh-zeile vh-schnittzeile";
+
+    var label = document.createElement("div");
+    label.className = "vh-label vh-schnitt-label";
+    label.textContent = "Ø Tagesschnitt";
+    zeile.appendChild(label);
+
+    // Gesamtschnitt der ganzen Woche (Ecke unter der Ø-Spalte)
+    var gsumme = 0, ganzahl = 0;
+    behaviors.forEach(function (b) {
+      tage.forEach(function (d) { var n = ratings[b.id + "|" + datumKey(d)]; if (n >= 1 && n <= 5) { gsumme += n; ganzahl += 1; } });
+    });
+    var gZelle = document.createElement("div");
+    if (ganzahl === 0) {
+      gZelle.className = "vh-zelle vh-spalte-schnitt g-leer";
+    } else {
+      var g = gsumme / ganzahl;
+      gZelle.className = "vh-zelle vh-spalte-schnitt g" + Math.round(g);
+      gZelle.textContent = g.toFixed(1).replace(".", ",");
+    }
+    zeile.appendChild(gZelle);
+
+    tage.forEach(function (d) {
+      var summe = 0, anzahl = 0;
+      behaviors.forEach(function (b) {
+        var note = ratings[b.id + "|" + datumKey(d)];
+        if (note >= 1 && note <= 5) { summe += note; anzahl += 1; }
+      });
+      var zelle = document.createElement("div");
+      if (anzahl === 0) {
+        zelle.className = "vh-zelle g-leer" + (datumKey(d) === heuteKey ? " heute" : "");
+      } else {
+        var avg = summe / anzahl;
+        zelle.className = "vh-zelle g" + Math.round(avg) + (datumKey(d) === heuteKey ? " heute" : "");
+        zelle.textContent = avg.toFixed(1).replace(".", ",");
+      }
+      zeile.appendChild(zelle);
+    });
+    return zeile;
+  }
+
+  // Abhaken bzw. Priorität wechseln
+  function vhUmschalten(id) {
+    var b = behaviorNachId(id); if (!b) return;
+    b.fertig = !b.fertig;
+    speichernVerhalten(); zeichneVerhalten();
+  }
+  function vhPrioWechseln(id) {
+    var b = behaviorNachId(id); if (!b) return;
+    b.prioritaet = (b.prioritaet % 3) + 1;
+    speichernVerhalten(); zeichneVerhalten();
+  }
+
+  /* ---- Verhalten verschieben (ganze Zeile ziehen) ---- */
+  function vhZiehenStart(e, zeile) {
+    e.preventDefault();
+    e.stopPropagation();   // verhindert, dass daraus ein Wochen-Wischen wird
+    vhGezogen = zeile; zeile.classList.add("zieht");
+    document.addEventListener("pointermove", vhZiehenBewegung);
+    document.addEventListener("pointerup", vhZiehenEnde);
+  }
+  function vhZiehenBewegung(e) {
+    e.preventDefault();
+    var danach = vhElementNachPosition(e.clientY);
+    if (danach == null) gitter.appendChild(vhGezogen);
+    else gitter.insertBefore(vhGezogen, danach);
+  }
+  function vhZiehenEnde() {
+    document.removeEventListener("pointermove", vhZiehenBewegung);
+    document.removeEventListener("pointerup", vhZiehenEnde);
+    if (vhGezogen) vhGezogen.classList.remove("zieht");
+    vhGezogen = null;
+    vhUebernimmReihenfolge(); speichernVerhalten(); zeichneVerhalten();
+  }
+  function vhElementNachPosition(y) {
+    var zeilen = gitter.querySelectorAll(".vh-zeile[data-id]:not(.zieht)");
+    for (var i = 0; i < zeilen.length; i++) {
+      var k = zeilen[i].getBoundingClientRect();
+      if (y < k.top + k.height / 2) return zeilen[i];
+    }
+    return null;
+  }
+  function vhUebernimmReihenfolge() {
+    var domIds = [];
+    gitter.querySelectorAll(".vh-zeile[data-id]").forEach(function (z) { domIds.push(z.getAttribute("data-id")); });
+    var warteschlange = domIds.slice();
+    behaviors = behaviors.map(function (b) { return vhIstSichtbar(b) ? behaviorNachId(warteschlange.shift()) : b; });
+  }
+
+  function zeichneLegende() {
+    var el = document.getElementById("vh-legende");
+    var stufen = [
+      { n: 1, f: "var(--note1)" }, { n: 2, f: "var(--note2)" }, { n: 3, f: "var(--note3)" },
+      { n: 4, f: "var(--note4)" }, { n: 5, f: "var(--note5)" }
+    ];
+    var html = "";
+    stufen.forEach(function (s) {
+      html += '<span class="chip"><span class="kaestchen" style="background:' + s.f + '"></span>' + s.n + " " + NOTE_NAME[s.n] + "</span>";
+    });
+    html += '<span class="chip"><span class="kaestchen" style="background:#fff;border:1px solid var(--linie)"></span>0 nicht zutreffend</span>';
+    el.innerHTML = html;
+  }
+
+  // Wochenschnitt = Durchschnitt aller echten Noten (1–5) der Woche; 0 und leere zählen nicht.
+  function zeichneWochenschnitt(tage) {
+    var summe = 0, anzahl = 0;
+    behaviors.forEach(function (b) {
+      tage.forEach(function (d) {
+        var note = ratings[b.id + "|" + datumKey(d)];
+        if (note >= 1 && note <= 5) { summe += note; anzahl += 1; }
+      });
+    });
+    if (anzahl === 0) {
+      schnittBox.innerHTML = "Noch keine Bewertungen in dieser Woche.";
+    } else {
+      var schnitt = (summe / anzahl).toFixed(1).replace(".", ",");
+      schnittBox.innerHTML = "Wochenschnitt: <b>" + schnitt + "</b> (aus " + anzahl + " Bewertungen, je niedriger desto besser).";
+    }
+  }
+
+  /* ---- Verhalten hinzufügen / löschen ---- */
+  // + legt eine neue Zeile an und macht sie direkt beschreibbar (kein prompt-Dialog nötig)
+  function verhaltenHinzufuegen() {
+    var b = { id: neueId(), text: "", fertig: false, prioritaet: 2 };
+    behaviors.unshift(b);        // oben einfügen, damit gleich sichtbar
+    vhEditId = b.id;
+    zeichneVerhalten();          // noch nicht speichern – erst wenn ein Name da ist
+    var inp = document.querySelector('.vh-zeile[data-id="' + b.id + '"] .vh-text-input');
+    if (inp) inp.focus();
+  }
+
+  // Ein Verhalten umbenennen (Antippen des Textes)
+  function vhBearbeiten(id) {
+    vhEditId = id;
+    zeichneVerhalten();
+    var inp = document.querySelector('.vh-zeile[data-id="' + id + '"] .vh-text-input');
+    if (inp) { inp.focus(); inp.select(); }
+  }
+
+  // Namen übernehmen; leer bleibt = Zeile wieder entfernen
+  function vhTextSpeichern(id, wert) {
+    var b = behaviorNachId(id);
+    if (!b) return;
+    var text = (wert || "").trim();
+    if (text === "") {
+      behaviors = behaviors.filter(function (x) { return x.id !== id; });
+    } else {
+      b.text = text;
+    }
+    vhEditId = null;
+    speichernVerhalten(); zeichneVerhalten();
+  }
+  function verhaltenLoeschen(id) {
+    behaviors = behaviors.filter(function (b) { return b.id !== id; });
+    // auch alle Bewertungen dieses Verhaltens entfernen
+    Object.keys(ratings).forEach(function (key) {
+      if (key.indexOf(id + "|") === 0) delete ratings[key];
+    });
+    speichernVerhalten(); speichernRatings(); zeichneVerhalten();
+  }
+
+  /* ---- Auswahl-Fenster (Picker) ---- */
+  var pickerOverlay = document.getElementById("vh-picker");
+  var aktuellePicker = null;   // { key }
+
+  function pickerOeffnen(b, d) {
+    aktuellePicker = { key: b.id + "|" + datumKey(d) };
+    document.getElementById("picker-titel").textContent = b.text;
+    document.getElementById("picker-unter").textContent =
+      WOCHENTAGE[(d.getDay() + 6) % 7] + ", " + kurzDatum(d) + d.getFullYear();
+
+    var knoepfe = document.getElementById("picker-knoepfe");
+    knoepfe.innerHTML = "";
+    [1, 2, 3, 4, 5, 0].forEach(function (n) {
+      var btn = document.createElement("button");
+      if (n === 0) { btn.style.background = "#fff"; btn.style.border = "1px solid var(--linie)"; btn.style.color = "var(--text-leise)"; }
+      else { btn.style.background = "var(--note" + n + ")"; btn.style.color = (n >= 4 ? "#fff" : "#1c2430"); }
+      btn.textContent = (n === 0 ? "–" : n);
+      btn.title = NOTE_NAME[n];
+      btn.onclick = function () { noteSetzen(n); };
+      knoepfe.appendChild(btn);
+    });
+    // vorhandene Notiz ins Textfeld laden
+    document.getElementById("picker-notiz").value = noteTexte[aktuellePicker.key] || "";
+    pickerOverlay.hidden = false;
+  }
+  function pickerSchliessen() { pickerOverlay.hidden = true; aktuellePicker = null; }
+
+  // Text aus dem Notizfeld übernehmen (leer = Notiz entfernen)
+  function notizAusFeldUebernehmen() {
+    var txt = document.getElementById("picker-notiz").value.trim();
+    if (txt === "") delete noteTexte[aktuellePicker.key];
+    else noteTexte[aktuellePicker.key] = txt;
+    speichernNotizen();
+  }
+
+  function noteSetzen(n) {
+    if (!aktuellePicker) return;
+    ratings[aktuellePicker.key] = n;
+    notizAusFeldUebernehmen();        // Notiz gleich mitspeichern
+    speichernRatings(); pickerSchliessen(); zeichneVerhalten();
+    if (n === 1 || n === 2) rockhornsShow();   // 🤘 Feier bei guter Note
+  }
+  function nurNotizSpeichern() {
+    if (!aktuellePicker) return;
+    notizAusFeldUebernehmen();        // nur die Notiz, Note bleibt unverändert
+    pickerSchliessen(); zeichneVerhalten();
+  }
+  function noteLoeschen() {
+    if (!aktuellePicker) return;
+    delete ratings[aktuellePicker.key];
+    delete noteTexte[aktuellePicker.key];
+    speichernRatings(); speichernNotizen(); pickerSchliessen(); zeichneVerhalten();
+  }
+
+  document.getElementById("picker-speichern").onclick = nurNotizSpeichern;
+  document.getElementById("picker-leeren").onclick = noteLoeschen;
+  document.getElementById("picker-abbrechen").onclick = pickerSchliessen;
+  pickerOverlay.onclick = function (e) { if (e.target === pickerOverlay) pickerSchliessen(); };
+
+  /* ---- Wochen-Navigation: Pfeile + Wischen ---- */
+  document.getElementById("vh-zurueck").onclick = function () { wochenOffset -= 1; zeichneVerhalten(); };
+  document.getElementById("vh-vor").onclick = function () { wochenOffset += 1; zeichneVerhalten(); };
+
+  var wrap = document.getElementById("vh-gitter-wrap");
+  var wischStartX = 0, wischStartY = 0, wischAktiv = false, letzterWisch = 0;
+  wrap.addEventListener("pointerdown", function (e) {
+    wischStartX = e.clientX; wischStartY = e.clientY; wischAktiv = true;
+  });
+  wrap.addEventListener("pointerup", function (e) {
+    if (!wischAktiv) return; wischAktiv = false;
+    var dx = e.clientX - wischStartX, dy = e.clientY - wischStartY;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+      letzterWisch = Date.now();
+      wochenOffset += (dx < 0 ? 1 : -1);   // nach links wischen = nächste Woche
+      zeichneVerhalten();
+    }
+  });
+
+  document.getElementById("vh-hinzu").onclick = verhaltenHinzufuegen;
+
+  // Nach Priorität sortieren (1 = hoch zuerst; gleiche Priorität behält die Reihenfolge)
+  document.getElementById("vh-sortieren").onclick = function () {
+    behaviors.sort(function (a, b) { return a.prioritaet - b.prioritaet; });
+    speichernVerhalten(); zeichneVerhalten();
+  };
+
+  // Erledigte-Verhalten ein-/ausblenden (Augen-Knopf)
+  var augeBtn = document.getElementById("vh-ausblenden");
+  function augeAktualisieren() {
+    augeBtn.textContent = vhAusblenden ? "🙈" : "👁";
+    augeBtn.classList.toggle("aktiv", vhAusblenden);
+  }
+  augeBtn.addEventListener("click", function () {
+    vhAusblenden = !vhAusblenden;
+    augeAktualisieren();
+    zeichneVerhalten();
+  });
+  augeAktualisieren();
+
+  // Wochenstart-Auswahl
+  var startSelect = document.getElementById("vh-starttag");
+  startSelect.value = String(startTag);
+  startSelect.addEventListener("change", function () {
+    startTag = parseInt(startSelect.value, 10);
+    localStorage.setItem(SPEICHER_STARTTAG, startTag);
+    wochenOffset = 0;              // zurück auf die aktuelle Woche
+    zeichneVerhalten();
+  });
+
+
+  /* ================================================================
+     BEREICH 3 – KOPFWEHTABLETTEN
+     ----------------------------------------------------------------
+     Datenmodell:
+       tabletten  = { "2026-07-29": anzahl, ... }   (Tabletten pro Tag)
+       tabNotizen = { "2026-07-29": text, ... }
+     Anzeige: Zeilen = Kalenderwochen (neueste oben), Spalten = Mo–So.
+       0 Tabletten = grün, ab 1 = dunkelrot, kein Eintrag = grau.
+     ================================================================ */
+  var SPEICHER_TABLETTEN = "change-app-tabletten";
+  var SPEICHER_TABNOTIZEN = "change-app-tabnotizen";
+  var ANZAHL_TAB_WOCHEN = 12;
+
+  var tabletten = localStorage.getItem(SPEICHER_TABLETTEN) ? JSON.parse(localStorage.getItem(SPEICHER_TABLETTEN)) : {};
+  var tabNotizen = localStorage.getItem(SPEICHER_TABNOTIZEN) ? JSON.parse(localStorage.getItem(SPEICHER_TABNOTIZEN)) : {};
+  var tabTopOffset = 0;   // wie viele Wochen die oberste Zeile vor der aktuellen Woche liegt
+
+  function speichernTabletten() { localStorage.setItem(SPEICHER_TABLETTEN, JSON.stringify(tabletten)); }
+  function speichernTabNotizen() { localStorage.setItem(SPEICHER_TABNOTIZEN, JSON.stringify(tabNotizen)); }
+
+  var tabGitter = document.getElementById("tab-gitter");
+  var tabTitel = document.getElementById("tab-titel");
+  var tabSchnittBox = document.getElementById("tab-schnitt");
+  var TAB_WOCHENTAGE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
+
+  // Montag der aktuellen Woche
+  function montagAktuell() {
+    var d = new Date(); d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    return d;
+  }
+  // Montage der anzuzeigenden Wochen (neueste zuerst)
+  function tabWochenMontage() {
+    var basis = montagAktuell();
+    var liste = [];
+    for (var i = 0; i < ANZAHL_TAB_WOCHEN; i++) {
+      var m = new Date(basis); m.setDate(basis.getDate() - (tabTopOffset + i) * 7);
+      liste.push(m);
+    }
+    return liste;
+  }
+
+  function zeichneTabletten() {
+    var heuteKey = datumKey(new Date());
+    var wochen = tabWochenMontage();
+    tabGitter.innerHTML = "";
+
+    // Titel: KW-Bereich + Zeitraum
+    tabTitel.innerHTML = "KW " + kalenderwoche(wochen[wochen.length - 1]) + " – " + kalenderwoche(wochen[0]) +
+      "<small>" + kurzDatum(wochen[wochen.length - 1]) + " – " + kurzDatum(wochen[0]) + wochen[0].getFullYear() + "</small>";
+
+    // Kopfzeile: Platzhalter (KW-Spalte) + Σ-Spalte + 7 Wochentage
+    var kopf = document.createElement("div"); kopf.className = "vh-kopfzeile";
+    var spacer = document.createElement("div"); spacer.className = "vh-kopf-spacer tab-kw-col"; kopf.appendChild(spacer);
+    var sumKopf = document.createElement("div"); sumKopf.className = "vh-kopf vh-spalte-schnitt"; sumKopf.innerHTML = "<b>Σ</b>Woche"; kopf.appendChild(sumKopf);
+    TAB_WOCHENTAGE.forEach(function (wt) {
+      var k = document.createElement("div"); k.className = "vh-kopf"; k.innerHTML = "<b>" + wt + "</b>"; kopf.appendChild(k);
+    });
+    tabGitter.appendChild(kopf);
+
+    // Eine Zeile je Kalenderwoche
+    wochen.forEach(function (montag) { tabGitter.appendChild(baueTabZeile(montag, heuteKey)); });
+
+    zeichneTabLegende();
+    zeichneTabSchnitt(wochen);
+  }
+
+  function baueTabZeile(montag, heuteKey) {
+    var zeile = document.createElement("div"); zeile.className = "vh-zeile";
+
+    // KW-Beschriftung links (mit Start- und Enddatum der Woche)
+    var sonntag = new Date(montag); sonntag.setDate(montag.getDate() + 6);
+    var jj = ("0" + (sonntag.getFullYear() % 100)).slice(-2);   // Jahr zweistellig
+    var label = document.createElement("div"); label.className = "vh-label vh-schnitt-label tab-kw-col";
+    label.innerHTML = "<span class='vh-text'>KW " + kalenderwoche(montag) + " · " + kurzDatum(montag) + "–" + kurzDatum(sonntag) + jj + "</span>";
+    zeile.appendChild(label);
+
+    // Tage der Woche (Mo–So)
+    var tage = [];
+    for (var i = 0; i < 7; i++) { var d = new Date(montag); d.setDate(montag.getDate() + i); tage.push(d); }
+
+    // Σ-Spalte: Wochensumme
+    var summe = 0, hatEintrag = false;
+    tage.forEach(function (d) { var a = tabletten[datumKey(d)]; if (a !== undefined) { summe += a; hatEintrag = true; } });
+    var sumZelle = document.createElement("div");
+    if (!hatEintrag) { sumZelle.className = "vh-zelle vh-spalte-schnitt g-leer"; }
+    else { sumZelle.className = "vh-zelle vh-spalte-schnitt " + (summe === 0 ? "tab-gruen" : "tab-rot"); sumZelle.textContent = summe; }
+    zeile.appendChild(sumZelle);
+
+    // Tageszellen
+    var jetzt = new Date();
+    tage.forEach(function (d) {
+      var key = datumKey(d);
+      var anzahl = tabletten[key];
+      var zelle = document.createElement("div");
+      var klasse = (anzahl === undefined) ? "g-leer" : (anzahl === 0 ? "tab-gruen" : "tab-rot");
+      zelle.className = "vh-zelle " + klasse + (key === heuteKey ? " heute" : "");
+      zelle.textContent = (anzahl === undefined) ? "" : anzahl;
+      if (d > jetzt) zelle.style.opacity = "0.45";   // zukünftige Tage abschwächen
+      zelle.onclick = function () { tabPickerOeffnen(d); };
+      if (tabNotizen[key]) {
+        var punkt = document.createElement("span"); punkt.className = "notiz-punkt"; punkt.title = tabNotizen[key];
+        zelle.appendChild(punkt);
+      }
+      zeile.appendChild(zelle);
+    });
+    return zeile;
+  }
+
+  function zeichneTabLegende() {
+    document.getElementById("tab-legende").innerHTML =
+      '<span class="chip"><span class="kaestchen" style="background:var(--note1)"></span>0 = keine Tablette</span>' +
+      '<span class="chip"><span class="kaestchen" style="background:#b21f2d"></span>ab 1 Tablette</span>' +
+      '<span class="chip"><span class="kaestchen" style="background:#eef1f5"></span>kein Eintrag</span>' +
+      '<span class="chip"><span class="kaestchen" style="background:var(--akzent)"></span>Notiz vorhanden</span>';
+  }
+
+  function zeichneTabSchnitt(wochen) {
+    var gesamt = 0, tageMit = 0;
+    wochen.forEach(function (montag) {
+      for (var i = 0; i < 7; i++) {
+        var d = new Date(montag); d.setDate(montag.getDate() + i);
+        var a = tabletten[datumKey(d)];
+        if (a >= 1) { gesamt += a; tageMit += 1; }
+      }
+    });
+    tabSchnittBox.innerHTML = "Im sichtbaren Zeitraum: <b>" + gesamt + "</b> Tabletten an <b>" + tageMit + "</b> Tag(en).";
+  }
+
+  // 🤘 Rockhörner über den Bildschirm fliegen lassen (Feier bei 0 Tabletten)
+  function rockhornsShow() {
+    var overlay = document.createElement("div");
+    overlay.className = "rockhorn-overlay";
+    for (var i = 0; i < 20; i++) {
+      var e = document.createElement("div");
+      e.className = "rockhorn";
+      e.textContent = "🤘";
+      e.style.left = Math.random() * 100 + "%";
+      e.style.bottom = (-40 - Math.random() * 40) + "px";
+      e.style.fontSize = (24 + Math.random() * 24) + "px";
+      e.style.setProperty("--fly-y", "-" + (window.innerHeight * (0.7 + Math.random() * 0.5)) + "px");
+      e.style.setProperty("--fly-x", (Math.random() * 320 - 160) + "px");
+      e.style.setProperty("--fly-rot", (Math.random() * 720 - 360) + "deg");
+      e.style.animationDelay = (Math.random() * 0.35) + "s";
+      overlay.appendChild(e);
+    }
+    document.body.appendChild(overlay);
+    setTimeout(function () { overlay.remove(); }, 2700);
+  }
+
+  /* ---- Eingabe-Fenster für Tabletten ---- */
+  var tabPickerOverlay = document.getElementById("tab-picker");
+  var tabAktuellKey = null;
+
+  // Rollrad (0–20) einmal aufbauen
+  var ROLLRAD_H = 32, ROLLRAD_MAX = 20;
+  var rollradScroll = document.getElementById("tab-rollrad-scroll");
+  (function () {
+    var html = '<div class="rollrad-spacer"></div>';
+    for (var i = 0; i <= ROLLRAD_MAX; i++) html += '<div class="rollrad-item" data-wert="' + i + '">' + i + '</div>';
+    html += '<div class="rollrad-spacer"></div>';
+    rollradScroll.innerHTML = html;
+  })();
+  function rollradWert() { return Math.max(0, Math.min(ROLLRAD_MAX, Math.round(rollradScroll.scrollTop / ROLLRAD_H))); }
+  function rollradMarkieren() {
+    var w = rollradWert();
+    rollradScroll.querySelectorAll(".rollrad-item").forEach(function (el) {
+      el.classList.toggle("aktiv", parseInt(el.getAttribute("data-wert"), 10) === w);
+    });
+  }
+  function rollradSetzen(w) { rollradScroll.scrollTop = w * ROLLRAD_H; rollradMarkieren(); }
+  // Abstände (Spacer) so setzen, dass die gewählte Zahl im mittleren Band zentriert ist – auch bei voller Höhe
+  function rollradSpacerAnpassen() {
+    var sp = Math.max(ROLLRAD_H, (rollradScroll.clientHeight - ROLLRAD_H) / 2);
+    rollradScroll.querySelectorAll(".rollrad-spacer").forEach(function (s) { s.style.height = sp + "px"; });
+  }
+  rollradScroll.addEventListener("scroll", rollradMarkieren);
+
+  function tabPickerOeffnen(d) {
+    tabAktuellKey = datumKey(d);
+    document.getElementById("tabpicker-unter").textContent =
+      WOCHENTAGE[(d.getDay() + 6) % 7] + ", " + kurzDatum(d) + d.getFullYear();
+    document.getElementById("tabpicker-notiz").value = tabNotizen[tabAktuellKey] || "";
+    tabPickerOverlay.hidden = false;
+    var a = tabletten[tabAktuellKey];
+    var start = (a === undefined) ? 0 : Math.min(a, ROLLRAD_MAX);
+    requestAnimationFrame(function () { rollradSpacerAnpassen(); rollradSetzen(start); });
+  }
+  function tabPickerSchliessen() { tabPickerOverlay.hidden = true; tabAktuellKey = null; }
+
+  function tabSpeichern() {
+    if (!tabAktuellKey) return;
+    var n = rollradWert();
+    tabletten[tabAktuellKey] = n;
+    var txt = document.getElementById("tabpicker-notiz").value.trim();
+    if (txt === "") delete tabNotizen[tabAktuellKey]; else tabNotizen[tabAktuellKey] = txt;
+    speichernTabletten(); speichernTabNotizen(); tabPickerSchliessen(); zeichneTabletten();
+    if (n === 0) rockhornsShow();   // 0 Tabletten = guter Tag → 🤘
+  }
+  function tabLeeren() {
+    if (!tabAktuellKey) return;
+    delete tabletten[tabAktuellKey]; delete tabNotizen[tabAktuellKey];
+    speichernTabletten(); speichernTabNotizen(); tabPickerSchliessen(); zeichneTabletten();
+  }
+
+  document.getElementById("tabpicker-speichern").onclick = tabSpeichern;
+  document.getElementById("tabpicker-leeren").onclick = tabLeeren;
+  document.getElementById("tabpicker-abbrechen").onclick = tabPickerSchliessen;
+  tabPickerOverlay.onclick = function (e) { if (e.target === tabPickerOverlay) tabPickerSchliessen(); };
+
+  document.getElementById("tab-zurueck").onclick = function () { tabTopOffset += ANZAHL_TAB_WOCHEN; zeichneTabletten(); };
+  document.getElementById("tab-vor").onclick = function () { tabTopOffset -= ANZAHL_TAB_WOCHEN; zeichneTabletten(); };
+
+
+  /* ================================================================
+     BACKUP – alle Daten sichern / wiederherstellen
+     ================================================================ */
+  var BACKUP_KEYS = ["change-app-todos", "change-app-behaviors", "change-app-ratings",
+    "change-app-notizen", "change-app-starttag", "change-app-tabletten", "change-app-tabnotizen"];
+  var backupDialog = document.getElementById("backup-dialog");
+
+  function backupDatenSammeln() {
+    var daten = { app: "change-app", version: 1, exportiert: new Date().toISOString() };
+    BACKUP_KEYS.forEach(function (k) { daten[k] = localStorage.getItem(k); });
+    return daten;
+  }
+  function backupOeffnen() { backupDialog.hidden = false; }
+  function backupSchliessen() { backupDialog.hidden = true; }
+
+  function backupExport() {
+    var text = JSON.stringify(backupDatenSammeln(), null, 2);
+    var blob = new Blob([text], { type: "application/json" });
+    var url = URL.createObjectURL(blob);
+    var d = new Date();
+    var name = "change-app-backup-" + d.getFullYear() + "-" +
+      ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2) + ".json";
+    var a = document.createElement("a");
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+  function backupEmail() {
+    var text = JSON.stringify(backupDatenSammeln());
+    var betreff = "Change-App Backup " + new Date().toLocaleDateString("de-AT");
+    var body = "Backup deiner Change-App. Zum Wiederherstellen den Text unten als .json-Datei speichern " +
+      "und in der App über „Aus Datei wiederherstellen\" einlesen.\n\n" + text;
+    window.location.href = "mailto:?subject=" + encodeURIComponent(betreff) + "&body=" + encodeURIComponent(body);
+  }
+  function backupImportStart() { document.getElementById("backup-datei").click(); }
+  document.getElementById("backup-datei").addEventListener("change", function (e) {
+    var datei = e.target.files[0]; e.target.value = "";
+    if (!datei) return;
+    var leser = new FileReader();
+    leser.onload = function () {
+      var daten;
+      try { daten = JSON.parse(leser.result); } catch (err) { alert("Datei konnte nicht gelesen werden."); return; }
+      if (!daten || daten.app !== "change-app") { alert("Das ist keine gültige Change-App-Backup-Datei."); return; }
+      if (!confirm("Alle aktuellen Daten mit dem Backup überschreiben? Das kann nicht rückgängig gemacht werden.")) return;
+      BACKUP_KEYS.forEach(function (k) {
+        if (daten[k] == null) localStorage.removeItem(k); else localStorage.setItem(k, daten[k]);
+      });
+      alert("Backup wiederhergestellt – die App wird neu geladen.");
+      location.reload();
+    };
+    leser.readAsText(datei);
+  });
+
+  document.querySelectorAll(".backup-oeffnen").forEach(function (b) { b.onclick = backupOeffnen; });
+  document.getElementById("backup-export").onclick = backupExport;
+  document.getElementById("backup-import").onclick = backupImportStart;
+  document.getElementById("backup-email").onclick = backupEmail;
+  document.getElementById("backup-schliessen").onclick = backupSchliessen;
+  backupDialog.onclick = function (e) { if (e.target === backupDialog) backupSchliessen(); };
+</script>
+</body>
+</html>
