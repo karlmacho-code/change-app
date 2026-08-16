@@ -333,11 +333,14 @@
     .vh-picker-eingabe .picker-notiz-gross { min-height: 200px; }
 
     /* Kopfweh-Logbuch */
+    .tab-log-kopfzeile { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .tab-log-titel { font-size: 14px; font-weight: 700; color: var(--text); flex: 0 0 auto; }
+    .tab-log-kopfzeile .picker-unter { margin: 0; text-align: left; }
     .tab-log-neu {
-      width: 100%; margin: 10px 0; padding: 12px; cursor: pointer;
-      border: 1px dashed var(--akzent); border-radius: 12px;
+      margin-left: auto; flex: 0 0 auto; width: 34px; height: 34px; padding: 0; cursor: pointer;
+      border: 1px solid var(--akzent); border-radius: 10px;
       background: rgba(79,124,255,0.08); color: var(--akzent);
-      font-size: 15px; font-weight: 700;
+      font-size: 22px; font-weight: 700; line-height: 1;
     }
     .tab-log-neu:active { background: rgba(79,124,255,0.16); }
     .tab-log-liste { flex: 1 1 auto; min-height: 60px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
@@ -605,9 +608,11 @@
   <!-- Eingabe-Fenster für Kopfwehtabletten (Anzahl + Notiz) -->
   <div id="tab-picker" class="picker-overlay" hidden>
     <div class="picker-box">
-      <div class="picker-titel">Kopfweh-Logbuch</div>
-      <div class="picker-unter" id="tabpicker-unter"></div>
-      <button id="tabpicker-neu" class="tab-log-neu">➕ Neuer Eintrag</button>
+      <div class="tab-log-kopfzeile">
+        <span class="tab-log-titel">Kopfweh-Logbuch</span>
+        <span class="picker-unter" id="tabpicker-unter"></span>
+        <button id="tabpicker-neu" class="tab-log-neu" title="Neuer Eintrag" aria-label="Neuer Eintrag">+</button>
+      </div>
       <div id="tabpicker-liste" class="tab-log-liste"></div>
       <div class="picker-zusatz">
         <button id="tabpicker-speichern">Speichern</button>
@@ -1786,7 +1791,7 @@
     liste.innerHTML = "";
     if (tabLogEintraege.length === 0) {
       var leer = document.createElement("div"); leer.className = "tab-log-leer";
-      leer.textContent = "Noch kein Eintrag. Mit „➕ Neuer Eintrag“ beginnen.";
+      leer.textContent = "Noch kein Eintrag. Mit dem „+“ oben beginnen.";
       liste.appendChild(leer);
       return;
     }
