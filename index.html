@@ -332,33 +332,46 @@
     .tabpicker-eingabe .picker-notiz-gross { min-height: 96px; }
     .vh-picker-eingabe .picker-notiz-gross { min-height: 200px; }
 
-    /* kleines, schmales Rollrad rechts neben dem Notizfeld */
-    .rollrad { position: relative; height: 96px; width: 56px; flex: 0 0 56px; }
-    .rollrad-scroll {
-      height: 100%; overflow-y: scroll; scroll-snap-type: y mandatory;
-      -webkit-overflow-scrolling: touch; scrollbar-width: none; text-align: center;
+    /* Kopfweh-Logbuch */
+    .tab-log-neu {
+      width: 100%; margin: 10px 0; padding: 12px; cursor: pointer;
+      border: 1px dashed var(--akzent); border-radius: 12px;
+      background: rgba(79,124,255,0.08); color: var(--akzent);
+      font-size: 15px; font-weight: 700;
     }
-    .rollrad-scroll::-webkit-scrollbar { display: none; }
-    .rollrad-item {
-      height: 32px; line-height: 32px; scroll-snap-align: center;
-      font-size: 16px; font-weight: 700; color: var(--text-leise);
-      transition: color .15s, transform .15s;
+    .tab-log-neu:active { background: rgba(79,124,255,0.16); }
+    .tab-log-liste { flex: 1 1 auto; min-height: 60px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+    .tab-log-leer { text-align: center; color: var(--text-leise); font-size: 14px; padding: 18px 8px; }
+    .tab-log-eintrag { border: 1px solid var(--linie); border-radius: 12px; padding: 10px; background: var(--karte); }
+    .tab-log-kopf { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+    .tab-log-zeit {
+      font-size: 16px; font-weight: 800; color: var(--text); background: var(--karte);
+      border: 1px solid var(--linie); border-radius: 8px; padding: 6px 6px;
     }
-    .rollrad-item.aktiv { color: var(--akzent); transform: scale(1.2); }
-    .rollrad-spacer { height: 32px; }
-    .rollrad-marker {
-      position: absolute; left: 2px; right: 2px; top: calc(50% - 16px); height: 32px;
-      border-radius: 8px; background: rgba(79,124,255,0.08);
-      border-top: 2px solid var(--akzent); border-bottom: 2px solid var(--akzent); pointer-events: none;
+    .tab-log-zeit::-webkit-calendar-picker-indicator { display: none; }
+    .tab-log-check { display: flex; align-items: center; gap: 3px; font-size: 14px; color: var(--text); cursor: pointer; }
+    .tab-log-check input { width: 20px; height: 20px; }
+    .tab-log-del { margin-left: auto; border: none; background: transparent; color: var(--text-leise); font-size: 24px; line-height: 1; cursor: pointer; padding: 0 4px; }
+    .tab-log-del:active { color: #e5484d; }
+    .tab-log-sel {
+      flex: 0 1 auto; min-width: 0; padding: 6px 4px; font-size: 14px; max-width: 40%;
+      color: var(--text); background: var(--karte); border: 1px solid var(--linie); border-radius: 8px;
     }
+    .tab-log-sel:focus { border-color: var(--akzent); outline: none; }
+    .tab-log-notiz {
+      width: 100%; margin-top: 8px; padding: 8px 10px; font-size: 14px; outline: none;
+      color: var(--text); background: var(--karte); border: 1px solid var(--linie); border-radius: 8px;
+    }
+    .tab-log-notiz:focus { border-color: var(--akzent); }
 
     /* Kopfweh-Eingabefenster über die volle Bildschirmhöhe */
     #tab-picker .picker-box {
       height: 100%; border-radius: 0; display: flex; flex-direction: column;
       padding-top: calc(16px + env(safe-area-inset-top));
     }
-    #tab-picker .tabpicker-eingabe { flex: 1; min-height: 0; margin-bottom: 10px; }
-    #tab-picker .rollrad { height: auto; align-self: stretch; }
+    /* Dialogbreite abhängig vom Gerät: iPhone voll/schmal, iPad breiter, MacBook noch breiter */
+    @media (min-width: 600px)  { #tab-picker .picker-box { max-width: 640px; } }
+    @media (min-width: 1000px) { #tab-picker .picker-box { max-width: 780px; } }
 
     /* senkrechte Noten-Spalte (1–5, n.z.) rechts im Verhalten-Fenster */
     .picker-knoepfe-spalte { display: flex; flex-direction: column; gap: 6px; flex: 0 0 60px; }
@@ -400,6 +413,14 @@
     .picker-zusatz button {
       flex: 1; padding: 12px; border-radius: 12px; border: 1px solid var(--linie);
       background: var(--karte); font-size: 14px; cursor: pointer; color: var(--text);
+    }
+    .cloud-link {
+      display: block; width: 100%; margin-top: 10px; padding: 6px; border: none; background: transparent;
+      color: var(--akzent); font-size: 13px; text-decoration: underline; cursor: pointer;
+    }
+    .cloud-warn {
+      margin: 10px 0; padding: 10px 12px; border-radius: 10px; font-size: 13px; line-height: 1.4;
+      background: rgba(229,72,77,0.08); border: 1px solid rgba(229,72,77,0.35); color: var(--text);
     }
 
     /* Backup-Fenster */
@@ -459,6 +480,7 @@
           <button id="vh-zurueck" aria-label="Woche zurück">‹</button>
           <div class="woche-titel" id="vh-woche-titel"></div>
           <button id="vh-vor" aria-label="Woche vor">›</button>
+          <button id="vh-heute" class="woche-heute" aria-label="Aktuelle Woche" title="Zur aktuellen Woche">📅</button>
         </div>
         <nav class="tabbar">
           <button data-view="todos" title="Todos"><span class="icon">✓</span></button>
@@ -486,6 +508,7 @@
           <button id="tab-zurueck" aria-label="Ältere Wochen">‹</button>
           <div class="woche-titel" id="tab-titel"></div>
           <button id="tab-vor" aria-label="Neuere Wochen">›</button>
+          <button id="tab-heute" class="woche-heute" aria-label="Aktuelle Woche" title="Zur aktuellen Woche">📅</button>
         </div>
         <nav class="tabbar">
           <button data-view="todos" title="Todos"><span class="icon">✓</span></button>
@@ -582,18 +605,12 @@
   <!-- Eingabe-Fenster für Kopfwehtabletten (Anzahl + Notiz) -->
   <div id="tab-picker" class="picker-overlay" hidden>
     <div class="picker-box">
-      <div class="picker-titel">Kopfwehtabletten</div>
+      <div class="picker-titel">Kopfweh-Logbuch</div>
       <div class="picker-unter" id="tabpicker-unter"></div>
-      <div class="tabpicker-eingabe">
-        <textarea id="tabpicker-notiz" class="picker-notiz picker-notiz-gross" placeholder="Notiz (optional)…" maxlength="300"></textarea>
-        <div class="rollrad" title="Anzahl Tabletten">
-          <div class="rollrad-marker"></div>
-          <div class="rollrad-scroll" id="tab-rollrad-scroll"></div>
-        </div>
-      </div>
+      <button id="tabpicker-neu" class="tab-log-neu">➕ Neuer Eintrag</button>
+      <div id="tabpicker-liste" class="tab-log-liste"></div>
       <div class="picker-zusatz">
         <button id="tabpicker-speichern">Speichern</button>
-        <button id="tabpicker-leeren">Eintrag löschen</button>
         <button id="tabpicker-abbrechen">Abbrechen</button>
       </div>
     </div>
@@ -631,17 +648,43 @@
           <button id="cloud-anmelden">Anmelden</button>
           <button id="cloud-registrieren">Registrieren</button>
         </div>
+        <button id="cloud-pw-vergessen" class="cloud-link">Konto-Passwort vergessen?</button>
+      </div>
+      <div id="cloud-recovery" hidden>
+        <div class="cloud-warn">🔑 Neues Konto-Passwort setzen (du bist über den E-Mail-Link gekommen).</div>
+        <input id="cloud-pw-neu" class="vhedit-input" type="password" placeholder="Neues Konto-Passwort (min. 6 Zeichen)" autocomplete="new-password">
+        <div class="picker-zusatz">
+          <button id="cloud-pw-neu-speichern">Neues Passwort speichern</button>
+        </div>
       </div>
       <div id="cloud-pass" hidden>
         <input id="cloud-master" class="vhedit-input" type="password" placeholder="Master-Passwort (nur du kennst es)" autocomplete="off">
         <div class="picker-zusatz">
           <button id="cloud-freischalten">Freischalten / Setzen</button>
         </div>
+        <button id="cloud-mp-vergessen-auf" class="cloud-link">Master-Passwort vergessen?</button>
+        <div id="cloud-mp-vergessen" hidden>
+          <div class="cloud-warn">⚠️ Das alte Master-Passwort lässt sich nicht wiederherstellen. Wenn du ein neues setzt, werden die verschlüsselten Cloud-Daten durch die Daten <b>dieses Geräts</b> ersetzt. Daten, die nur in der Cloud liegen, gehen dabei verloren.</div>
+          <input id="cloud-mp-reset-neu" class="vhedit-input" type="password" placeholder="Neues Master-Passwort (min. 6 Zeichen)" autocomplete="off">
+          <div class="picker-zusatz">
+            <button id="cloud-mp-reset-los">Cloud neu aufsetzen & fortfahren</button>
+            <button id="cloud-mp-reset-abbrechen">Abbrechen</button>
+          </div>
+        </div>
       </div>
       <div id="cloud-account" hidden>
         <div class="picker-zusatz">
           <button id="cloud-jetzt-sync">Jetzt synchronisieren</button>
           <button id="cloud-abmelden">Abmelden</button>
+        </div>
+        <button id="cloud-mp-aendern-auf" class="cloud-link">🔑 Master-Passwort ändern</button>
+        <div id="cloud-mp-aendern" hidden>
+          <input id="cloud-mp-neu" class="vhedit-input" type="password" placeholder="Neues Master-Passwort (min. 6 Zeichen)" autocomplete="off">
+          <input id="cloud-mp-neu2" class="vhedit-input" type="password" placeholder="Neues Master-Passwort wiederholen" autocomplete="off">
+          <div class="picker-zusatz">
+            <button id="cloud-mp-speichern">Ändern & neu verschlüsseln</button>
+            <button id="cloud-mp-abbrechen">Abbrechen</button>
+          </div>
         </div>
       </div>
       <div class="picker-zusatz">
@@ -1437,7 +1480,7 @@
         if (roh === "" && minRoh === "") { delete ratings[key]; }
         else {
           var std = parseFloat(roh) || 0, min = parseFloat(minRoh) || 0;
-          ratings[key] = Math.round((std + min / 60) * 1000) / 1000;
+          ratings[key] = Math.round((std + min / 60) * 10) / 10;   // auf 1 Komastelle
         }
       } else {
         if (roh === "") delete ratings[key];
@@ -1478,6 +1521,7 @@
   /* ---- Wochen-Navigation: Pfeile + Wischen ---- */
   document.getElementById("vh-zurueck").onclick = function () { wochenOffset -= 1; zeichneVerhalten(); };
   document.getElementById("vh-vor").onclick = function () { wochenOffset += 1; zeichneVerhalten(); };
+  document.getElementById("vh-heute").onclick = function () { wochenOffset = 0; zeichneVerhalten(); };
 
   var wrap = document.getElementById("vh-gitter-wrap");
   var wischStartX = 0, wischStartY = 0, wischAktiv = false, letzterWisch = 0;
@@ -1593,6 +1637,19 @@
     zeichneTabSchnitt(wochen);
   }
 
+  // Anzahl genommener Tabletten eines Tages (Logbuch-Array ODER altes Zahl-Format)
+  function tabAnzahl(v) {
+    if (v == null) return undefined;
+    if (typeof v === "number") return v;
+    if (Array.isArray(v)) return v.filter(function (e) { return e.tablette; }).length;
+    return 0;
+  }
+  function tabHatNotiz(key) {
+    var v = tabletten[key];
+    if (Array.isArray(v) && v.some(function (e) { return (e.notiz || "").trim() !== ""; })) return true;
+    return !!tabNotizen[key];
+  }
+
   function baueTabZeile(montag, heuteKey) {
     var zeile = document.createElement("div"); zeile.className = "vh-zeile";
 
@@ -1609,7 +1666,7 @@
 
     // Σ-Spalte: Wochensumme
     var summe = 0, hatEintrag = false;
-    tage.forEach(function (d) { var a = tabletten[datumKey(d)]; if (a !== undefined) { summe += a; hatEintrag = true; } });
+    tage.forEach(function (d) { var a = tabAnzahl(tabletten[datumKey(d)]); if (a !== undefined) { summe += a; hatEintrag = true; } });
     var sumZelle = document.createElement("div");
     if (!hatEintrag) { sumZelle.className = "vh-zelle vh-spalte-schnitt g-leer"; }
     else { sumZelle.className = "vh-zelle vh-spalte-schnitt " + (summe === 0 ? "tab-gruen" : "tab-rot"); sumZelle.textContent = summe; }
@@ -1619,15 +1676,15 @@
     var jetzt = new Date();
     tage.forEach(function (d) {
       var key = datumKey(d);
-      var anzahl = tabletten[key];
+      var anzahl = tabAnzahl(tabletten[key]);
       var zelle = document.createElement("div");
       var klasse = (anzahl === undefined) ? "g-leer" : (anzahl === 0 ? "tab-gruen" : "tab-rot");
       zelle.className = "vh-zelle " + klasse + (key === heuteKey ? " heute" : "");
       zelle.textContent = (anzahl === undefined) ? "" : anzahl;
       if (d > jetzt) zelle.style.opacity = "0.45";   // zukünftige Tage abschwächen
       zelle.onclick = function () { tabPickerOeffnen(d); };
-      if (tabNotizen[key]) {
-        var punkt = document.createElement("span"); punkt.className = "notiz-punkt"; punkt.title = tabNotizen[key];
+      if (tabHatNotiz(key)) {
+        var punkt = document.createElement("span"); punkt.className = "notiz-punkt";
         zelle.appendChild(punkt);
       }
       zeile.appendChild(zelle);
@@ -1648,7 +1705,7 @@
     wochen.forEach(function (montag) {
       for (var i = 0; i < 7; i++) {
         var d = new Date(montag); d.setDate(montag.getDate() + i);
-        var a = tabletten[datumKey(d)];
+        var a = tabAnzahl(tabletten[datumKey(d)]);
         if (a >= 1) { gesamt += a; tageMit += 1; }
       }
     });
@@ -1676,68 +1733,138 @@
     setTimeout(function () { overlay.remove(); }, 2700);
   }
 
-  /* ---- Eingabe-Fenster für Tabletten ---- */
+  /* ---- Kopfweh-Logbuch (Eingabe-Fenster) ---- */
   var tabPickerOverlay = document.getElementById("tab-picker");
   var tabAktuellKey = null;
+  var tabLogEintraege = [];   // Arbeitskopie der Einträge des gewählten Tages
 
-  // Rollrad (0–20) einmal aufbauen
-  var ROLLRAD_H = 32, ROLLRAD_MAX = 20;
-  var rollradScroll = document.getElementById("tab-rollrad-scroll");
-  (function () {
-    var html = '<div class="rollrad-spacer"></div>';
-    for (var i = 0; i <= ROLLRAD_MAX; i++) html += '<div class="rollrad-item" data-wert="' + i + '">' + i + '</div>';
-    html += '<div class="rollrad-spacer"></div>';
-    rollradScroll.innerHTML = html;
-  })();
-  function rollradWert() { return Math.max(0, Math.min(ROLLRAD_MAX, Math.round(rollradScroll.scrollTop / ROLLRAD_H))); }
-  function rollradMarkieren() {
-    var w = rollradWert();
-    rollradScroll.querySelectorAll(".rollrad-item").forEach(function (el) {
-      el.classList.toggle("aktiv", parseInt(el.getAttribute("data-wert"), 10) === w);
-    });
+  function jetztUhrzeit() {
+    var d = new Date();
+    return ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2);
   }
-  function rollradSetzen(w) { rollradScroll.scrollTop = w * ROLLRAD_H; rollradMarkieren(); }
-  // Abstände (Spacer) so setzen, dass die gewählte Zahl im mittleren Band zentriert ist – auch bei voller Höhe
-  function rollradSpacerAnpassen() {
-    var sp = Math.max(ROLLRAD_H, (rollradScroll.clientHeight - ROLLRAD_H) / 2);
-    rollradScroll.querySelectorAll(".rollrad-spacer").forEach(function (s) { s.style.height = sp + "px"; });
-  }
-  rollradScroll.addEventListener("scroll", rollradMarkieren);
 
   function tabPickerOeffnen(d) {
     tabAktuellKey = datumKey(d);
     document.getElementById("tabpicker-unter").textContent =
       WOCHENTAGE[(d.getDay() + 6) % 7] + ", " + kurzDatum(d) + d.getFullYear();
-    document.getElementById("tabpicker-notiz").value = tabNotizen[tabAktuellKey] || "";
+    var v = tabletten[tabAktuellKey];
+    if (Array.isArray(v)) {
+      tabLogEintraege = v.map(function (e) {
+        return { zeit: e.zeit || "", tablette: !!e.tablette, drang: e.drang || "", schmerz: e.schmerz || "", notiz: e.notiz || "" };
+      });
+    } else if (typeof v === "number") {
+      // altes Format: Zahl → so viele „Tablette genommen“-Einträge
+      tabLogEintraege = [];
+      for (var i = 0; i < v; i++) {
+        tabLogEintraege.push({ zeit: "", tablette: true, drang: "", schmerz: "", notiz: (i === 0 ? (tabNotizen[tabAktuellKey] || "") : "") });
+      }
+    } else {
+      tabLogEintraege = [];
+    }
+    tabLogRender();
     tabPickerOverlay.hidden = false;
-    var a = tabletten[tabAktuellKey];
-    var start = (a === undefined) ? 0 : Math.min(a, ROLLRAD_MAX);
-    requestAnimationFrame(function () { rollradSpacerAnpassen(); rollradSetzen(start); });
   }
   function tabPickerSchliessen() { tabPickerOverlay.hidden = true; tabAktuellKey = null; }
 
-  function tabSpeichern() {
-    if (!tabAktuellKey) return;
-    var n = rollradWert();
-    tabletten[tabAktuellKey] = n;
-    var txt = document.getElementById("tabpicker-notiz").value.trim();
-    if (txt === "") delete tabNotizen[tabAktuellKey]; else tabNotizen[tabAktuellKey] = txt;
-    speichernTabletten(); speichernTabNotizen(); tabPickerSchliessen(); zeichneTabletten();
-    if (n === 0) rockhornsShow();   // 0 Tabletten = guter Tag → 🤘
-  }
-  function tabLeeren() {
-    if (!tabAktuellKey) return;
-    delete tabletten[tabAktuellKey]; delete tabNotizen[tabAktuellKey];
-    speichernTabletten(); speichernTabNotizen(); tabPickerSchliessen(); zeichneTabletten();
+  // Kompakte Skala 1–10 (leer = nicht angegeben). Platzhalter zeigt den Namen,
+  // gewählt wird kurz "D 5" / "S 7" angezeigt – damit alles in eine Zeile passt.
+  function macheSkala(titel, klasse, wert, onChange) {
+    var sel = document.createElement("select"); sel.className = "tab-log-sel " + klasse;
+    sel.title = titel + " (0–10)";
+    var o0 = document.createElement("option"); o0.value = ""; o0.textContent = titel; sel.appendChild(o0);
+    for (var i = 0; i <= 10; i++) {
+      var o = document.createElement("option"); o.value = String(i); o.textContent = titel.charAt(0) + " " + i; sel.appendChild(o);
+    }
+    sel.value = wert || "";
+    sel.onchange = function () { onChange(sel.value); };
+    return sel;
   }
 
+  // Zeichnet die Eintragsliste neu (aus tabLogEintraege)
+  function tabLogRender() {
+    var liste = document.getElementById("tabpicker-liste");
+    liste.innerHTML = "";
+    if (tabLogEintraege.length === 0) {
+      var leer = document.createElement("div"); leer.className = "tab-log-leer";
+      leer.textContent = "Noch kein Eintrag. Mit „➕ Neuer Eintrag“ beginnen.";
+      liste.appendChild(leer);
+      return;
+    }
+    tabLogEintraege.forEach(function (e, idx) {
+      var karte = document.createElement("div"); karte.className = "tab-log-eintrag";
+
+      var kopf = document.createElement("div"); kopf.className = "tab-log-kopf";
+      var zeit = document.createElement("input");
+      zeit.type = "time"; zeit.className = "tab-log-zeit"; zeit.value = e.zeit || "";
+      zeit.onchange = function () { tabLogEintraege[idx].zeit = zeit.value; };
+
+      var check = document.createElement("label"); check.className = "tab-log-check"; check.title = "Tablette genommen?";
+      var cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = !!e.tablette;
+      cb.onchange = function () { tabLogEintraege[idx].tablette = cb.checked; };
+      check.appendChild(cb); check.appendChild(document.createTextNode(" 💊"));
+
+      var drang = macheSkala("Drang", "skala-drang", e.drang, function (val) { tabLogEintraege[idx].drang = val; });
+      var schmerz = macheSkala("Schmerz", "skala-schmerz", e.schmerz, function (val) { tabLogEintraege[idx].schmerz = val; });
+
+      var del = document.createElement("button"); del.className = "tab-log-del"; del.type = "button";
+      del.textContent = "×"; del.title = "Eintrag löschen";
+      del.onclick = function () { tabLogSync(); tabLogEintraege.splice(idx, 1); tabLogRender(); };
+
+      kopf.appendChild(zeit); kopf.appendChild(check); kopf.appendChild(drang); kopf.appendChild(schmerz); kopf.appendChild(del);
+      karte.appendChild(kopf);
+
+      var notiz = document.createElement("input");
+      notiz.type = "text"; notiz.className = "tab-log-notiz"; notiz.value = e.notiz || "";
+      notiz.placeholder = "Notiz / Info (optional)…"; notiz.maxLength = 300;
+      notiz.oninput = function () { tabLogEintraege[idx].notiz = notiz.value; };
+      karte.appendChild(notiz);
+
+      liste.appendChild(karte);
+    });
+  }
+  // DOM-Werte in die Arbeitskopie zurückschreiben (Sicherheit vor Umbau/Speichern)
+  function tabLogSync() {
+    var karten = document.querySelectorAll("#tabpicker-liste .tab-log-eintrag");
+    karten.forEach(function (k, idx) {
+      if (!tabLogEintraege[idx]) return;
+      tabLogEintraege[idx].zeit = k.querySelector(".tab-log-zeit").value;
+      tabLogEintraege[idx].tablette = k.querySelector('input[type="checkbox"]').checked;
+      tabLogEintraege[idx].drang = k.querySelector(".skala-drang").value;
+      tabLogEintraege[idx].schmerz = k.querySelector(".skala-schmerz").value;
+      tabLogEintraege[idx].notiz = k.querySelector(".tab-log-notiz").value;
+    });
+  }
+  function tabLogNeu() {
+    tabLogSync();
+    tabLogEintraege.push({ zeit: jetztUhrzeit(), tablette: false, drang: "", schmerz: "", notiz: "" });
+    tabLogRender();
+  }
+
+  function tabSpeichern() {
+    if (!tabAktuellKey) return;
+    tabLogSync();
+    var hatteEintraege = tabLogEintraege.length > 0;
+    if (!hatteEintraege) {
+      delete tabletten[tabAktuellKey];
+    } else {
+      tabletten[tabAktuellKey] = tabLogEintraege.map(function (e) {
+        return { zeit: e.zeit || "", tablette: !!e.tablette, drang: e.drang || "", schmerz: e.schmerz || "", notiz: (e.notiz || "").trim() };
+      });
+    }
+    delete tabNotizen[tabAktuellKey];   // Notizen liegen jetzt pro Eintrag im Logbuch
+    var anzahl = tabAnzahl(tabletten[tabAktuellKey]) || 0;
+    speichernTabletten(); speichernTabNotizen(); tabPickerSchliessen(); zeichneTabletten();
+    if (hatteEintraege && anzahl === 0) rockhornsShow();   // Tag erfasst, keine Tablette → 🤘
+  }
+
+  document.getElementById("tabpicker-neu").onclick = tabLogNeu;
   document.getElementById("tabpicker-speichern").onclick = tabSpeichern;
-  document.getElementById("tabpicker-leeren").onclick = tabLeeren;
   document.getElementById("tabpicker-abbrechen").onclick = tabPickerSchliessen;
   tabPickerOverlay.onclick = function (e) { if (e.target === tabPickerOverlay) tabPickerSchliessen(); };
 
   document.getElementById("tab-zurueck").onclick = function () { tabTopOffset += ANZAHL_TAB_WOCHEN; zeichneTabletten(); };
   document.getElementById("tab-vor").onclick = function () { tabTopOffset -= ANZAHL_TAB_WOCHEN; zeichneTabletten(); };
+  document.getElementById("tab-heute").onclick = function () { tabTopOffset = 0; zeichneTabletten(); };
 
 
   /* ================================================================
@@ -1826,6 +1953,7 @@
   try { if (window.supabase && window.supabase.createClient) sb = window.supabase.createClient(SB_URL, SB_KEY); } catch (e) { sb = null; }
 
   var cloudUser = null;
+  var cloudRecovery = false;   // true, wenn per E-Mail-Link ein neues Konto-Passwort gesetzt wird
   var cloudPass = localStorage.getItem("change-app-e2ee") || null;
   var cloudDirtyFlag = false, cloudPushTimer = null, cloudSyncLaeuft = false;
   var _setItemRoh = localStorage.setItem.bind(localStorage);
@@ -1917,11 +2045,15 @@
   var cloudDialog = document.getElementById("cloud-dialog");
   function cloudStatusText(t) { var el = document.getElementById("cloud-status"); if (el) el.textContent = t; }
   function cloudUIAktualisieren() {
-    var eingeloggt = !!cloudUser, frei = !!cloudPass;
-    document.getElementById("cloud-login").hidden = eingeloggt;
-    document.getElementById("cloud-pass").hidden = !(eingeloggt && !frei);
-    document.getElementById("cloud-account").hidden = !(eingeloggt && frei);
+    var eingeloggt = !!cloudUser, frei = !!cloudPass, rec = !!cloudRecovery;
+    document.getElementById("cloud-login").hidden = eingeloggt || rec;
+    document.getElementById("cloud-recovery").hidden = !rec;
+    document.getElementById("cloud-pass").hidden = rec || !(eingeloggt && !frei);
+    document.getElementById("cloud-account").hidden = rec || !(eingeloggt && frei);
+    document.getElementById("cloud-mp-aendern").hidden = true;   // Änder-Formular eingeklappt
+    document.getElementById("cloud-mp-vergessen").hidden = true; // Vergessen-Formular eingeklappt
     if (!sb) cloudStatusText("Cloud-Baustein nicht geladen (bist du offline?).");
+    else if (rec) cloudStatusText("Setze jetzt dein neues Konto-Passwort.");
     else if (!eingeloggt) cloudStatusText("Melde dich an, um über alle Geräte zu synchronisieren.");
     else if (!frei) cloudStatusText("Angemeldet als " + cloudUser.email + ". Jetzt Master-Passwort setzen/eingeben.");
     else cloudStatusText("Angemeldet als " + cloudUser.email + " – Sync aktiv.");
@@ -1970,24 +2102,103 @@
     cloudUIAktualisieren();
   }
 
+  /* ---- Konto-Passwort vergessen: Reset-Mail anfordern ---- */
+  async function cloudPwReset() {
+    if (!sb) { cloudStatusText("Cloud nicht verfügbar."); return; }
+    var email = document.getElementById("cloud-email").value.trim();
+    if (!email) { cloudStatusText("Bitte zuerst oben deine E-Mail eingeben."); return; }
+    cloudStatusText("Sende Link zum Zurücksetzen…");
+    var redirect = location.origin + location.pathname;   // zurück zu genau dieser App
+    var res = await sb.auth.resetPasswordForEmail(email, { redirectTo: redirect });
+    if (res.error) { cloudStatusText("Fehler: " + res.error.message); return; }
+    cloudStatusText("E-Mail gesendet – öffne den Link darin, um ein neues Konto-Passwort zu setzen.");
+  }
+  /* ---- Neues Konto-Passwort speichern (nach Klick auf den E-Mail-Link) ---- */
+  async function cloudNeuesPasswortSpeichern() {
+    if (!sb) { cloudStatusText("Cloud nicht verfügbar."); return; }
+    var np = document.getElementById("cloud-pw-neu").value;
+    if (!np || np.length < 6) { cloudStatusText("Neues Passwort: mindestens 6 Zeichen."); return; }
+    cloudStatusText("Speichere neues Konto-Passwort…");
+    var res = await sb.auth.updateUser({ password: np });
+    if (res.error) { cloudStatusText("Fehler: " + res.error.message); return; }
+    document.getElementById("cloud-pw-neu").value = "";
+    cloudRecovery = false;
+    if (res.data && res.data.user) cloudUser = res.data.user;
+    cloudUIAktualisieren();
+    cloudStatusText("Konto-Passwort geändert ✓ – jetzt Master-Passwort eingeben.");
+  }
+
+  /* ---- Master-Passwort ändern (freigeschaltet: Daten neu verschlüsseln) ---- */
+  async function cloudMasterAendern() {
+    var n1 = document.getElementById("cloud-mp-neu").value;
+    var n2 = document.getElementById("cloud-mp-neu2").value;
+    if (!n1 || n1.length < 6) { cloudStatusText("Neues Master-Passwort: mindestens 6 Zeichen."); return; }
+    if (n1 !== n2) { cloudStatusText("Die zwei neuen Passwörter stimmen nicht überein."); return; }
+    cloudStatusText("Verschlüssele deine Daten mit dem neuen Passwort…");
+    cloudPass = n1; _setItemRoh("change-app-e2ee", n1);
+    cloudDirtyFlag = true;
+    await cloudPush();   // aktuelle (lokale = entschlüsselte) Daten mit neuem Passwort hochladen
+    document.getElementById("cloud-mp-neu").value = "";
+    document.getElementById("cloud-mp-neu2").value = "";
+    document.getElementById("cloud-mp-aendern").hidden = true;
+    cloudStatusText("Master-Passwort geändert – Daten neu verschlüsselt ✓");
+  }
+
+  /* ---- Master-Passwort vergessen: Cloud mit den Daten dieses Geräts neu aufsetzen ---- */
+  async function cloudMasterReset() {
+    var n1 = document.getElementById("cloud-mp-reset-neu").value;
+    if (!n1 || n1.length < 6) { cloudStatusText("Neues Master-Passwort: mindestens 6 Zeichen."); return; }
+    cloudStatusText("Setze neues Master-Passwort & lade Cloud neu…");
+    cloudPass = n1; _setItemRoh("change-app-e2ee", n1);
+    document.getElementById("cloud-mp-reset-neu").value = "";
+    document.getElementById("cloud-mp-vergessen").hidden = true;
+    cloudUIAktualisieren();   // jetzt freigeschaltet → Account-Ansicht
+    cloudDirtyFlag = true;
+    await cloudPush();        // Cloud-Block wird durch Daten dieses Geräts (neu verschlüsselt) ersetzt
+    cloudStatusText("Cloud neu aufgesetzt – neues Master-Passwort aktiv ✓");
+  }
+
   if (cloudDialog) {
     document.getElementById("backup-cloud").onclick = function () { backupSchliessen(); cloudOeffnen(); };
     document.getElementById("cloud-anmelden").onclick = function () { cloudAnmelden(false); };
     document.getElementById("cloud-registrieren").onclick = function () { cloudAnmelden(true); };
+    document.getElementById("cloud-pw-vergessen").onclick = cloudPwReset;
+    document.getElementById("cloud-pw-neu-speichern").onclick = cloudNeuesPasswortSpeichern;
     document.getElementById("cloud-freischalten").onclick = cloudFreischalten;
     document.getElementById("cloud-jetzt-sync").onclick = cloudInitSync;
     document.getElementById("cloud-abmelden").onclick = cloudAbmelden;
+    document.getElementById("cloud-mp-aendern-auf").onclick = function () {
+      var f = document.getElementById("cloud-mp-aendern"); f.hidden = !f.hidden;
+      if (!f.hidden) document.getElementById("cloud-mp-neu").focus();
+    };
+    document.getElementById("cloud-mp-abbrechen").onclick = function () { document.getElementById("cloud-mp-aendern").hidden = true; };
+    document.getElementById("cloud-mp-speichern").onclick = cloudMasterAendern;
+    document.getElementById("cloud-mp-vergessen-auf").onclick = function () {
+      var f = document.getElementById("cloud-mp-vergessen"); f.hidden = !f.hidden;
+      if (!f.hidden) document.getElementById("cloud-mp-reset-neu").focus();
+    };
+    document.getElementById("cloud-mp-reset-abbrechen").onclick = function () { document.getElementById("cloud-mp-vergessen").hidden = true; };
+    document.getElementById("cloud-mp-reset-los").onclick = cloudMasterReset;
     document.getElementById("cloud-schliessen").onclick = cloudSchliessen;
     cloudDialog.onclick = function (e) { if (e.target === cloudDialog) cloudSchliessen(); };
   }
 
   // beim Start: bestehende Anmeldung erkennen und synchronisieren
   if (sb) {
+    // Kommt man über den „Passwort vergessen“-E-Mail-Link, meldet Supabase PASSWORD_RECOVERY
+    sb.auth.onAuthStateChange(function (event, session) {
+      if (event === "PASSWORD_RECOVERY") {
+        cloudRecovery = true;
+        if (session && session.user) cloudUser = session.user;
+        cloudUIAktualisieren();
+        cloudOeffnen();
+      }
+    });
     sb.auth.getSession().then(function (res) {
       if (res.data && res.data.session) {
         cloudUser = res.data.session.user;
         cloudUIAktualisieren();
-        if (cloudPass) cloudInitSync();
+        if (cloudPass && !cloudRecovery) cloudInitSync();
       }
     });
   }
