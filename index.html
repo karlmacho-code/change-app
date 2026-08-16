@@ -404,11 +404,15 @@
 
     /* Backup-Fenster */
     .backup-knoepfe { display: flex; flex-direction: column; gap: 8px; margin: 14px 0 6px; }
-    .backup-knoepfe button {
+    .backup-knoepfe button, .backup-knoepfe .backup-label {
       padding: 14px; border: 1px solid var(--linie); background: var(--karte);
       border-radius: 12px; font-size: 15px; cursor: pointer; color: var(--text); text-align: left;
+      display: block;
     }
-    .backup-knoepfe button:active { background: var(--hintergrund); }
+    .backup-knoepfe button:active, .backup-knoepfe .backup-label:active { background: var(--hintergrund); }
+    .backup-import-status { font-size: 13px; color: var(--text); margin: 10px 0 6px; text-align: center; }
+    .backup-import-los { width: 100%; padding: 14px; border: none; border-radius: 12px;
+      background: var(--note1); color: #0b3d1e; font-size: 15px; font-weight: 700; cursor: pointer; margin-bottom: 4px; }
     /* Backup-Zeile unter dem Verhaltens-Tracker-Titel */
     .vh-backup-zeile { margin: -2px 0 12px 0; }
   </style>
@@ -600,15 +604,17 @@
       <div class="picker-unter">Alle Daten (Todos, Verhalten, Kopfweh) sichern oder wiederherstellen.</div>
       <div class="backup-knoepfe">
         <button id="backup-export">💾 Als Datei sichern</button>
-        <button id="backup-import">📂 Aus Datei wiederherstellen</button>
+        <label id="backup-import" class="backup-label" for="backup-datei">📂 Aus Datei wiederherstellen</label>
         <button id="backup-email">✉️ Per E-Mail sichern</button>
         <button id="backup-cloud">☁️ Cloud-Sync (Geräte-Abgleich)</button>
       </div>
+      <div id="backup-import-status" class="backup-import-status" hidden></div>
+      <button id="backup-import-los" class="backup-import-los" hidden>✅ Jetzt einlesen</button>
       <div class="picker-zusatz">
         <button id="backup-schliessen">Schließen</button>
       </div>
     </div>
-    <input type="file" id="backup-datei" accept="application/json,.json" style="display:none">
+    <input type="file" id="backup-datei" accept="application/json,.json" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
   </div>
 
   <!-- Cloud-Sync (Login + Ende-zu-Ende-Verschlüsselung) -->
@@ -1736,28 +1742,41 @@
       "und in der App über „Aus Datei wiederherstellen\" einlesen.\n\n" + text;
     window.location.href = "mailto:?subject=" + encodeURIComponent(betreff) + "&body=" + encodeURIComponent(body);
   }
-  function backupImportStart() { document.getElementById("backup-datei").click(); }
+  var backupGeladen = null;   // zwischengespeicherte, geprüfte Backup-Daten
   document.getElementById("backup-datei").addEventListener("change", function (e) {
     var datei = e.target.files[0]; e.target.value = "";
+    var statusEl = document.getElementById("backup-import-status");
+    var losBtn = document.getElementById("backup-import-los");
+    backupGeladen = null; losBtn.hidden = true;
     if (!datei) return;
+    statusEl.hidden = false; statusEl.textContent = "Lese „" + datei.name + "“…";
     var leser = new FileReader();
+    leser.onerror = function () { statusEl.textContent = "Datei konnte nicht gelesen werden."; };
     leser.onload = function () {
       var daten;
-      try { daten = JSON.parse(leser.result); } catch (err) { alert("Datei konnte nicht gelesen werden."); return; }
-      if (!daten || daten.app !== "change-app") { alert("Das ist keine gültige Change-App-Backup-Datei."); return; }
-      if (!confirm("Alle aktuellen Daten mit dem Backup überschreiben? Das kann nicht rückgängig gemacht werden.")) return;
+      try { daten = JSON.parse(leser.result); } catch (err) { statusEl.textContent = "Das ist keine gültige JSON-Datei."; return; }
+      if (!daten || daten.app !== "change-app") { statusEl.textContent = "Das ist keine Change-App-Backup-Datei."; return; }
+      var anz = 0;
       BACKUP_KEYS.forEach(function (k) {
-        if (daten[k] == null) localStorage.removeItem(k); else localStorage.setItem(k, daten[k]);
+        try { var o = JSON.parse(daten[k]); anz += Array.isArray(o) ? o.length : (o && typeof o === "object" ? Object.keys(o).length : 0); } catch (x) {}
       });
-      alert("Backup wiederhergestellt – die App wird neu geladen.");
-      location.reload();
+      backupGeladen = daten;
+      statusEl.textContent = "„" + datei.name + "“ geladen – " + anz + " Einträge. Zum Übernehmen unten tippen:";
+      losBtn.hidden = false;
     };
     leser.readAsText(datei);
   });
+  function backupImportLos() {
+    if (!backupGeladen) return;
+    BACKUP_KEYS.forEach(function (k) {
+      if (backupGeladen[k] == null) localStorage.removeItem(k); else localStorage.setItem(k, backupGeladen[k]);
+    });
+    location.reload();
+  }
 
   document.querySelectorAll(".backup-oeffnen").forEach(function (b) { b.onclick = backupOeffnen; });
   document.getElementById("backup-export").onclick = backupExport;
-  document.getElementById("backup-import").onclick = backupImportStart;
+  document.getElementById("backup-import-los").onclick = backupImportLos;
   document.getElementById("backup-email").onclick = backupEmail;
   document.getElementById("backup-schliessen").onclick = backupSchliessen;
   backupDialog.onclick = function (e) { if (e.target === backupDialog) backupSchliessen(); };
