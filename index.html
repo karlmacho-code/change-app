@@ -361,13 +361,25 @@
       color: var(--text); background: var(--karte); border: 1px solid var(--linie); border-radius: 8px;
     }
     .tab-log-sel:focus { border-color: var(--akzent); outline: none; }
+    .tab-log-notiz-wrap { position: relative; margin-top: 8px; }
     .tab-log-notiz {
-      display: block; box-sizing: border-box; width: 100%; margin-top: 8px; padding: 8px 10px;
+      display: block; box-sizing: border-box; width: 100%; padding: 8px 10px;
       font: inherit; font-size: 14px; line-height: 1.4; outline: none;
-      resize: vertical; overflow-y: auto; min-height: 38px;
+      resize: none; overflow-y: auto; min-height: 38px;
       color: var(--text); background: var(--karte); border: 1px solid var(--linie); border-radius: 8px;
     }
     .tab-log-notiz:focus { border-color: var(--akzent); }
+    /* Griff (drei Striche) zum Größerziehen des Notizfeldes */
+    .tab-log-griff {
+      display: flex; align-items: center; justify-content: center;
+      height: 20px; cursor: ns-resize; touch-action: none; user-select: none; -webkit-user-select: none;
+    }
+    .tab-log-griff-linien {
+      width: 34px; height: 10px; border-radius: 2px; opacity: .55;
+      background: repeating-linear-gradient(to bottom,
+        var(--text-leise) 0, var(--text-leise) 2px, transparent 2px, transparent 4px);
+    }
+    .tab-log-griff:active .tab-log-griff-linien { opacity: 1; }
 
     /* Kopfweh-Eingabefenster über die volle Bildschirmhöhe */
     #tab-picker .picker-box {
@@ -1779,6 +1791,23 @@
     if (tabPickerOverlay.hidden) return;   // versteckt: Messung wäre 0
     document.querySelectorAll("#tabpicker-liste .tab-log-notiz").forEach(tabNotizGrow);
   }
+  // Griff (drei Striche) unten am Notizfeld: nach unten ziehen = Feld höher machen
+  function tabGriffAktivieren(griff, notiz) {
+    var startY = 0, startH = 0, ziehe = false;
+    griff.addEventListener("pointerdown", function (e) {
+      ziehe = true; startY = e.clientY; startH = notiz.offsetHeight;
+      try { griff.setPointerCapture(e.pointerId); } catch (_) {}
+      e.preventDefault();
+    });
+    griff.addEventListener("pointermove", function (e) {
+      if (!ziehe) return;
+      notiz.style.height = Math.max(38, startH + (e.clientY - startY)) + "px";
+      e.preventDefault();
+    });
+    function ende(e) { if (ziehe) { ziehe = false; try { griff.releasePointerCapture(e.pointerId); } catch (_) {} } }
+    griff.addEventListener("pointerup", ende);
+    griff.addEventListener("pointercancel", ende);
+  }
 
   // Kompakte Skala 1–10 (leer = nicht angegeben). Platzhalter zeigt den Namen,
   // gewählt wird kurz "D 5" / "S 7" angezeigt – damit alles in eine Zeile passt.
@@ -1827,11 +1856,16 @@
       kopf.appendChild(zeit); kopf.appendChild(check); kopf.appendChild(drang); kopf.appendChild(schmerz); kopf.appendChild(del);
       karte.appendChild(kopf);
 
+      var notizWrap = document.createElement("div"); notizWrap.className = "tab-log-notiz-wrap";
       var notiz = document.createElement("textarea");
       notiz.className = "tab-log-notiz"; notiz.value = e.notiz || "";
       notiz.placeholder = "Notiz / Info (optional)…"; notiz.maxLength = 300; notiz.rows = 1;
       notiz.oninput = function () { tabLogEintraege[idx].notiz = notiz.value; tabNotizWachsen(notiz); };
-      karte.appendChild(notiz);
+      var griff = document.createElement("div"); griff.className = "tab-log-griff"; griff.title = "Zum Vergrößern nach unten ziehen";
+      var linien = document.createElement("div"); linien.className = "tab-log-griff-linien"; griff.appendChild(linien);
+      tabGriffAktivieren(griff, notiz);
+      notizWrap.appendChild(notiz); notizWrap.appendChild(griff);
+      karte.appendChild(notizWrap);
 
       liste.appendChild(karte);
     });
