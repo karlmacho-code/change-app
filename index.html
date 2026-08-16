@@ -362,7 +362,9 @@
     }
     .tab-log-sel:focus { border-color: var(--akzent); outline: none; }
     .tab-log-notiz {
-      width: 100%; margin-top: 8px; padding: 8px 10px; font-size: 14px; outline: none;
+      display: block; box-sizing: border-box; width: 100%; margin-top: 8px; padding: 8px 10px;
+      font: inherit; font-size: 14px; line-height: 1.4; outline: none;
+      resize: none; overflow: hidden; min-height: 38px;
       color: var(--text); background: var(--karte); border: 1px solid var(--linie); border-radius: 8px;
     }
     .tab-log-notiz:focus { border-color: var(--akzent); }
@@ -1768,8 +1770,19 @@
     }
     tabLogRender();
     tabPickerOverlay.hidden = false;
+    // Höhe erst berechnen, wenn das Fenster sichtbar ist (sonst ist scrollHeight 0)
+    requestAnimationFrame(tabLogGrowAll);
   }
   function tabPickerSchliessen() { tabPickerOverlay.hidden = true; tabAktuellKey = null; }
+
+  // Notizfeld an seinen Inhalt anpassen (wächst mit den Zeilen; Rahmen mitrechnen)
+  function tabNotizGrow(el) {
+    el.style.height = "auto";
+    el.style.height = (el.scrollHeight + el.offsetHeight - el.clientHeight) + "px";
+  }
+  function tabLogGrowAll() {
+    document.querySelectorAll("#tabpicker-liste .tab-log-notiz").forEach(tabNotizGrow);
+  }
 
   // Kompakte Skala 1–10 (leer = nicht angegeben). Platzhalter zeigt den Namen,
   // gewählt wird kurz "D 5" / "S 7" angezeigt – damit alles in eine Zeile passt.
@@ -1818,14 +1831,15 @@
       kopf.appendChild(zeit); kopf.appendChild(check); kopf.appendChild(drang); kopf.appendChild(schmerz); kopf.appendChild(del);
       karte.appendChild(kopf);
 
-      var notiz = document.createElement("input");
-      notiz.type = "text"; notiz.className = "tab-log-notiz"; notiz.value = e.notiz || "";
-      notiz.placeholder = "Notiz / Info (optional)…"; notiz.maxLength = 300;
-      notiz.oninput = function () { tabLogEintraege[idx].notiz = notiz.value; };
+      var notiz = document.createElement("textarea");
+      notiz.className = "tab-log-notiz"; notiz.value = e.notiz || "";
+      notiz.placeholder = "Notiz / Info (optional)…"; notiz.maxLength = 300; notiz.rows = 1;
+      notiz.oninput = function () { tabLogEintraege[idx].notiz = notiz.value; tabNotizGrow(notiz); };
       karte.appendChild(notiz);
 
       liste.appendChild(karte);
     });
+    tabLogGrowAll();   // vorhandene (auch mehrzeilige) Notizen passend hoch machen
   }
   // DOM-Werte in die Arbeitskopie zurückschreiben (Sicherheit vor Umbau/Speichern)
   function tabLogSync() {
