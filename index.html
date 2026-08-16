@@ -363,6 +363,39 @@
     /* senkrechte Noten-Spalte (1–5, n.z.) rechts im Verhalten-Fenster */
     .picker-knoepfe-spalte { display: flex; flex-direction: column; gap: 6px; flex: 0 0 60px; }
     .picker-knoepfe-spalte button { flex: 1; border: none; border-radius: 10px; font-size: 16px; font-weight: 800; cursor: pointer; }
+
+    /* Zahl-Zellen (neutral) und inaktive Wochen-Tageszellen */
+    .vh-zelle.zahl { background: #eaf0ff; color: #1c2430; font-size: 12px; }
+    /* breiter Wochen-Rahmen über die 7 Tage (Zahl steht separat in der Ø-Spalte) */
+    .vh-zelle.vh-woche-breit { flex: 0 0 auto; width: calc(7 * 42px + 6 * 3px); }
+    .vh-zelle.vh-woche-breit.zahl-breit { background: #8aa4ff; color: #ffffff; }
+
+    /* Zahl-Eingabe im Auswahl-Fenster */
+    .picker-zahl { flex: 0 0 84px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
+    .picker-zahl input { width: 78px; text-align: center; font-size: 22px; font-weight: 700; padding: 8px 4px;
+      border: 1px solid var(--linie); border-radius: 10px; color: var(--text); background: var(--karte); outline: none; }
+    .picker-zahl input:focus { border-color: var(--akzent); }
+    .picker-zahl-einheit { font-size: 13px; color: var(--text-leise); font-weight: 700; }
+
+    /* Verhalten-Bearbeiten-Fenster */
+    .vhedit-input { width: 100%; margin-top: 10px; padding: 12px 14px; border: 1px solid var(--linie);
+      border-radius: 12px; font-size: 16px; color: var(--text); background: var(--karte); outline: none; }
+    .vhedit-input:focus { border-color: var(--akzent); }
+    .vhedit-zeile { display: flex; align-items: center; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+    .vhedit-label { font-size: 13px; color: var(--text-leise); min-width: 64px; }
+    .vhedit-toggle { display: flex; gap: 6px; }
+    .vhedit-toggle button { padding: 9px 14px; border: 1px solid var(--linie); background: var(--karte);
+      border-radius: 10px; font-size: 14px; cursor: pointer; color: var(--text); }
+    .vhedit-toggle button.aktiv { border-color: var(--akzent); background: #eef3ff; color: var(--akzent-dunkel); font-weight: 700; }
+    /* hidden-Attribut auch bei flex-Elementen wirksam machen */
+    .vhedit-zeile[hidden], .picker-zahl[hidden], .picker-knoepfe-spalte[hidden] { display: none; }
+    /* Farbauswahl für den Wochenbalken */
+    .vhedit-farben { display: flex; flex-wrap: wrap; gap: 6px; }
+    .vhedit-farben button { width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; }
+    .vhedit-farben button.aktiv { border-color: var(--text); }
+    .vhedit-farben .farb-std { width: auto; height: 28px; border-radius: 8px; border: 1px solid var(--linie);
+      background: var(--karte); color: var(--text-leise); font-size: 12px; padding: 0 10px; }
+    .vhedit-farben .farb-std.aktiv { border-color: var(--akzent); color: var(--akzent); }
     .picker-zusatz { display: flex; gap: 8px; margin-top: 8px; }
     .picker-zusatz button {
       flex: 1; padding: 12px; border-radius: 12px; border: 1px solid var(--linie);
@@ -477,11 +510,65 @@
       <div class="vh-picker-eingabe">
         <textarea id="picker-notiz" class="picker-notiz picker-notiz-gross" placeholder="Notiz (optional)…" maxlength="300"></textarea>
         <div class="picker-knoepfe-spalte" id="picker-knoepfe"></div>
+        <div class="picker-zahl" id="picker-zahl" hidden>
+          <input id="picker-zahl-input" type="text" inputmode="decimal" placeholder="Zahl">
+          <div class="picker-zahl-einheit" id="picker-zahl-einheit"></div>
+        </div>
       </div>
       <div class="picker-zusatz">
         <button id="picker-speichern">Notiz speichern</button>
         <button id="picker-leeren">Eintrag löschen</button>
         <button id="picker-abbrechen">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Verhalten bearbeiten (Name, Intervall, Eingabe-Art, Einheit) -->
+  <div id="vh-edit" class="picker-overlay" hidden>
+    <div class="picker-box">
+      <div class="picker-titel">Verhalten bearbeiten</div>
+      <input id="vhedit-name" class="vhedit-input" type="text" placeholder="Name des Verhaltens" maxlength="60">
+      <div class="vhedit-zeile">
+        <span class="vhedit-label">Intervall</span>
+        <div class="vhedit-toggle" id="vhedit-intervall">
+          <button data-w="taeglich">Täglich</button>
+          <button data-w="woechentlich">Wöchentlich</button>
+        </div>
+      </div>
+      <div class="vhedit-zeile">
+        <span class="vhedit-label">Eingabe</span>
+        <div class="vhedit-toggle" id="vhedit-eingabe">
+          <button data-w="note">Note 1–5</button>
+          <button data-w="zahl">Zahl</button>
+        </div>
+      </div>
+      <div class="vhedit-zeile" id="vhedit-einheit-zeile" hidden>
+        <span class="vhedit-label">Einheit</span>
+        <input id="vhedit-einheit" class="vhedit-input" list="einheiten-liste" placeholder="z. B. Stk, Std, Sack, Dosen">
+        <datalist id="einheiten-liste">
+          <option>Stk</option><option>Std</option><option>Min</option><option>Sack</option>
+          <option>Dosen</option><option>Flaschen</option><option>km</option><option>kg</option><option>€</option>
+        </datalist>
+      </div>
+      <div class="vhedit-zeile" id="vhedit-farbe-zeile" hidden>
+        <span class="vhedit-label">Balkenfarbe</span>
+        <div class="vhedit-farben" id="vhedit-farben">
+          <button type="button" data-color="" class="farb-std">Standard</button>
+          <button type="button" data-color="#2ea44f" style="background:#2ea44f"></button>
+          <button type="button" data-color="#138496" style="background:#138496"></button>
+          <button type="button" data-color="#4f7cff" style="background:#4f7cff"></button>
+          <button type="button" data-color="#6f5bd6" style="background:#6f5bd6"></button>
+          <button type="button" data-color="#d6459a" style="background:#d6459a"></button>
+          <button type="button" data-color="#e14b52" style="background:#e14b52"></button>
+          <button type="button" data-color="#ff8c42" style="background:#ff8c42"></button>
+          <button type="button" data-color="#f2c200" style="background:#f2c200"></button>
+          <button type="button" data-color="#6c757d" style="background:#6c757d"></button>
+        </div>
+      </div>
+      <div class="picker-zusatz">
+        <button id="vhedit-speichern">Speichern</button>
+        <button id="vhedit-loeschen">Löschen</button>
+        <button id="vhedit-abbrechen">Abbrechen</button>
       </div>
     </div>
   </div>
@@ -515,6 +602,7 @@
         <button id="backup-export">💾 Als Datei sichern</button>
         <button id="backup-import">📂 Aus Datei wiederherstellen</button>
         <button id="backup-email">✉️ Per E-Mail sichern</button>
+        <button id="backup-cloud">☁️ Cloud-Sync (Geräte-Abgleich)</button>
       </div>
       <div class="picker-zusatz">
         <button id="backup-schliessen">Schließen</button>
@@ -523,6 +611,38 @@
     <input type="file" id="backup-datei" accept="application/json,.json" style="display:none">
   </div>
 
+  <!-- Cloud-Sync (Login + Ende-zu-Ende-Verschlüsselung) -->
+  <div id="cloud-dialog" class="picker-overlay" hidden>
+    <div class="picker-box">
+      <div class="picker-titel">☁️ Cloud-Sync</div>
+      <div class="picker-unter" id="cloud-status"></div>
+      <div id="cloud-login">
+        <input id="cloud-email" class="vhedit-input" type="email" placeholder="E-Mail" autocomplete="username">
+        <input id="cloud-pw" class="vhedit-input" type="password" placeholder="Passwort (Konto)" autocomplete="current-password">
+        <div class="picker-zusatz">
+          <button id="cloud-anmelden">Anmelden</button>
+          <button id="cloud-registrieren">Registrieren</button>
+        </div>
+      </div>
+      <div id="cloud-pass" hidden>
+        <input id="cloud-master" class="vhedit-input" type="password" placeholder="Master-Passwort (nur du kennst es)" autocomplete="off">
+        <div class="picker-zusatz">
+          <button id="cloud-freischalten">Freischalten / Setzen</button>
+        </div>
+      </div>
+      <div id="cloud-account" hidden>
+        <div class="picker-zusatz">
+          <button id="cloud-jetzt-sync">Jetzt synchronisieren</button>
+          <button id="cloud-abmelden">Abmelden</button>
+        </div>
+      </div>
+      <div class="picker-zusatz">
+        <button id="cloud-schliessen">Schließen</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
   /* ================================================================
      TAB-UMSCHALTUNG (welcher Bereich ist sichtbar?)
@@ -801,18 +921,26 @@
   function behaviorNachId(id) { return behaviors.find(function (b) { return b.id === id; }); }
   function vhIstSichtbar(b) { return vhAusblenden ? !b.fertig : true; }
 
+  // fehlende Felder ergänzen (auch für neue Optionen: Intervall, Eingabe-Art, Einheit)
+  function normVerhalten(b) {
+    if (b.fertig === undefined) b.fertig = false;
+    if (b.prioritaet === undefined) b.prioritaet = 2;
+    if (b.intervall === undefined) b.intervall = "taeglich";   // "taeglich" | "woechentlich"
+    if (b.eingabe === undefined) b.eingabe = "note";           // "note" (1–5) | "zahl"
+    if (b.einheit === undefined) b.einheit = "";               // z. B. "Stk", "Std"
+    if (b.farbe === undefined) b.farbe = "";                   // eigene Balkenfarbe (leer = Standard)
+    return b;
+  }
+  // passende Textfarbe (schwarz/weiß) je nach Helligkeit der Hintergrundfarbe
+  function textFarbe(hex) {
+    var h = hex.replace("#", ""); if (h.length === 3) h = h.split("").map(function (c) { return c + c; }).join("");
+    var r = parseInt(h.substr(0, 2), 16), g = parseInt(h.substr(2, 2), 16), bl = parseInt(h.substr(4, 2), 16);
+    return (0.299 * r + 0.587 * g + 0.114 * bl) > 150 ? "#1c2430" : "#ffffff";
+  }
   function ladeVerhalten() {
     var g = localStorage.getItem(SPEICHER_VERHALTEN);
-    if (g) {
-      var liste = JSON.parse(g);
-      // fehlende Felder bei alten Daten ergänzen
-      liste.forEach(function (b) {
-        if (b.fertig === undefined) b.fertig = false;
-        if (b.prioritaet === undefined) b.prioritaet = 2;
-      });
-      return liste;
-    }
-    return beispielVerhalten.map(function (text) { return { id: neueId(), text: text, fertig: false, prioritaet: 2 }; });
+    if (g) return JSON.parse(g).map(normVerhalten);
+    return beispielVerhalten.map(function (text) { return normVerhalten({ id: neueId(), text: text }); });
   }
   function ladeRatings() {
     var g = localStorage.getItem(SPEICHER_RATINGS);
@@ -849,6 +977,12 @@
     t.setDate(t.getDate() + 3 - ((t.getDay() + 6) % 7));   // Donnerstag dieser Woche
     var jan4 = new Date(t.getFullYear(), 0, 4);
     return 1 + Math.round(((t - jan4) / 86400000 - 3 + ((jan4.getDay() + 6) % 7)) / 7);
+  }
+  // Montag der (ISO-)Woche, in der d liegt – für wöchentliche Einträge (Woche = Mo–So)
+  function montagISO(d) {
+    var x = new Date(d); x.setHours(0, 0, 0, 0);
+    x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+    return x;
   }
 
   var gitter = document.getElementById("vh-gitter");
@@ -913,6 +1047,43 @@
   }
 
   // Baut eine Verhaltens-Zeile (Beschriftung + 7 Tageszellen) als EIN Element
+  // Eine Wert-Zelle (Note-Farbe oder Zahl) inkl. Notiz-Punkt
+  function baueWertZelle(b, key, istHeute) {
+    var wert = ratings[key];
+    var zelle = document.createElement("div");
+    var cls = "vh-zelle";
+    if (b.eingabe === "zahl") {
+      if (wert === undefined) cls += " g-leer";
+      else { cls += " zahl"; zelle.textContent = String(wert).replace(".", ","); }
+    } else {
+      cls += (wert === undefined) ? " g-leer" : " g" + wert;
+      zelle.textContent = (wert === undefined) ? "" : (wert === 0 ? "–" : wert);
+    }
+    if (istHeute) cls += " heute";
+    zelle.className = cls;
+    if (noteTexte[key]) {
+      var punkt = document.createElement("span"); punkt.className = "notiz-punkt"; punkt.title = noteTexte[key];
+      zelle.appendChild(punkt);
+    }
+    return zelle;
+  }
+
+  // Wochen-Zusammenfassung je Zeile: Note → Schnitt, Zahl → Summe
+  function baueSummenZelle(b, tage) {
+    var zelle = document.createElement("div");
+    if (b.eingabe === "zahl") {
+      var summe = 0, hat = false;
+      tage.forEach(function (d) { var v = ratings[b.id + "|" + datumKey(d)]; if (typeof v === "number") { summe += v; hat = true; } });
+      if (!hat) zelle.className = "vh-zelle vh-spalte-schnitt g-leer";
+      else { zelle.className = "vh-zelle vh-spalte-schnitt zahl"; zelle.textContent = String(Math.round(summe * 100) / 100).replace(".", ","); }
+    } else {
+      var rs = rowSchnitt(b, tage);
+      if (rs === null) zelle.className = "vh-zelle vh-spalte-schnitt g-leer";
+      else { zelle.className = "vh-zelle vh-spalte-schnitt g" + Math.round(rs); zelle.textContent = rs.toFixed(1).replace(".", ","); }
+    }
+    return zelle;
+  }
+
   function baueVhZeile(b, tage, heuteKey) {
     var zeile = document.createElement("div");
     zeile.className = "vh-zeile";
@@ -921,70 +1092,70 @@
     var label = document.createElement("div");
     label.className = "vh-label prio" + b.prioritaet + (b.fertig ? " fertig" : "");
 
-    // Anfasser zum Verschieben
     var anfasser = document.createElement("div"); anfasser.className = "vh-anfasser"; anfasser.textContent = "☰";
     anfasser.addEventListener("pointerdown", function (e) { vhZiehenStart(e, zeile); });
     label.appendChild(anfasser);
 
-    // Priorität als runder Farbpunkt (antippen wechselt)
     var prio = document.createElement("div"); prio.className = "vh-prio p" + b.prioritaet;
-    prio.textContent = b.prioritaet;
-    prio.title = PRIO_NAME[b.prioritaet];
+    prio.textContent = b.prioritaet; prio.title = PRIO_NAME[b.prioritaet];
     prio.onclick = function () { vhPrioWechseln(b.id); };
     label.appendChild(prio);
 
-    // Text – im Bearbeiten-Modus ein Eingabefeld direkt in der Zeile
-    if (b.id === vhEditId) {
-      var input = document.createElement("input");
-      input.type = "text"; input.className = "vh-text-input"; input.value = b.text;
-      input.maxLength = 60; input.placeholder = "Verhalten benennen…";
-      input.onkeydown = function (e) { if (e.key === "Enter") { e.preventDefault(); input.blur(); } };
-      input.onblur = function () { vhTextSpeichern(b.id, input.value); };
-      label.appendChild(input);
-    } else {
-      var text = document.createElement("span"); text.className = "vh-text"; text.textContent = b.text; text.title = b.text;
-      text.onclick = function () { vhBearbeiten(b.id); };   // Antippen = umbenennen
-      label.appendChild(text);
-    }
+    // Name (Antippen öffnet das Bearbeiten-Fenster). Kleine Hinweise: · Wo (wöchentlich), (Einheit)
+    var text = document.createElement("span"); text.className = "vh-text";
+    text.textContent = b.text
+      + (b.intervall === "woechentlich" ? " · Wo" : "")
+      + (b.eingabe === "zahl" && b.einheit ? " (" + b.einheit + ")" : "");
+    text.title = "Antippen zum Bearbeiten";
+    text.onclick = function () { vhEditOeffnen(b.id, false); };
+    label.appendChild(text);
 
-    // Abhaken (klein und dezent, rechts vor dem Löschen)
     var check = document.createElement("div"); check.className = "vh-check" + (b.fertig ? " aktiv" : "");
     check.onclick = function () { vhUmschalten(b.id); };
     label.appendChild(check);
 
-    // Löschen
     var del = document.createElement("button"); del.className = "vh-del"; del.textContent = "×";
     del.onclick = function () { verhaltenLoeschen(b.id); };
     label.appendChild(del);
 
     zeile.appendChild(label);
 
-    // Ø-Spalte am Wochenanfang: Schnitt dieser Zeile
-    var rs = rowSchnitt(b, tage);
-    var oZelle = document.createElement("div");
-    if (rs === null) {
-      oZelle.className = "vh-zelle vh-spalte-schnitt g-leer";
-    } else {
-      oZelle.className = "vh-zelle vh-spalte-schnitt g" + Math.round(rs);
-      oZelle.textContent = rs.toFixed(1).replace(".", ",");
-    }
-    zeile.appendChild(oZelle);
-
-    tage.forEach(function (d) {
-      var key = b.id + "|" + datumKey(d);
-      var note = ratings[key];
-      var zelle = document.createElement("div");
-      var klasse = (note === undefined) ? "g-leer" : "g" + note;
-      zelle.className = "vh-zelle " + klasse + (datumKey(d) === heuteKey ? " heute" : "");
-      zelle.textContent = (note === undefined) ? "" : (note === 0 ? "–" : note);
-      zelle.onclick = function () { pickerOeffnen(b, d); };
-      // farbiger Punkt unten rechts, wenn eine Notiz hinterlegt ist
-      if (noteTexte[key]) {
-        var punkt = document.createElement("span"); punkt.className = "notiz-punkt"; punkt.title = noteTexte[key];
-        zelle.appendChild(punkt);
+    if (b.intervall === "woechentlich") {
+      var mo = montagISO(tage[0]); var so = new Date(mo); so.setDate(mo.getDate() + 6);
+      var wkey = b.id + "|W|" + datumKey(mo);
+      var unter = "KW " + kalenderwoche(mo) + " · " + kurzDatum(mo) + "–" + kurzDatum(so) + so.getFullYear();
+      var oeffnen = function () { pickerOeffnen(b, wkey, unter); };
+      // Ø-Spalte: die Zahl/Note separat
+      var oZelle = baueWertZelle(b, wkey, false); oZelle.classList.add("vh-spalte-schnitt");
+      oZelle.onclick = oeffnen;
+      zeile.appendChild(oZelle);
+      // breiter, kräftig gefärbter Rahmen über die 7 Tage (mit Zahl inkl. Einheit bzw. Note)
+      var val = ratings[wkey];
+      var frame = document.createElement("div");
+      var cls = "vh-zelle vh-woche-breit";
+      if (val === undefined) {
+        cls += " g-leer";
+      } else if (b.eingabe === "zahl") {
+        cls += " zahl-breit";
+        frame.textContent = String(val).replace(".", ",") + (b.einheit ? " " + b.einheit : "");
+      } else {
+        cls += " g" + val;
+        frame.textContent = (val === 0 ? "–" : val);
       }
-      zeile.appendChild(zelle);
-    });
+      frame.className = cls;
+      if (b.farbe && val !== undefined) { frame.style.background = b.farbe; frame.style.color = textFarbe(b.farbe); }
+      frame.onclick = oeffnen;
+      zeile.appendChild(frame);
+    } else {
+      zeile.appendChild(baueSummenZelle(b, tage));
+      tage.forEach(function (d) {
+        var key = b.id + "|" + datumKey(d);
+        var unter = WOCHENTAGE[(d.getDay() + 6) % 7] + ", " + kurzDatum(d) + d.getFullYear();
+        var zelle = baueWertZelle(b, key, datumKey(d) === heuteKey);
+        zelle.onclick = function () { pickerOeffnen(b, key, unter); };
+        zeile.appendChild(zelle);
+      });
+    }
     return zeile;
   }
 
@@ -998,9 +1169,11 @@
     label.textContent = "Ø Tagesschnitt";
     zeile.appendChild(label);
 
+    // nur tägliche Note-Verhalten für den Tagesschnitt heranziehen
+    var noteTag = behaviors.filter(function (b) { return b.eingabe === "note" && b.intervall === "taeglich"; });
     // Gesamtschnitt der ganzen Woche (Ecke unter der Ø-Spalte)
     var gsumme = 0, ganzahl = 0;
-    behaviors.forEach(function (b) {
+    noteTag.forEach(function (b) {
       tage.forEach(function (d) { var n = ratings[b.id + "|" + datumKey(d)]; if (n >= 1 && n <= 5) { gsumme += n; ganzahl += 1; } });
     });
     var gZelle = document.createElement("div");
@@ -1015,7 +1188,7 @@
 
     tage.forEach(function (d) {
       var summe = 0, anzahl = 0;
-      behaviors.forEach(function (b) {
+      noteTag.forEach(function (b) {
         var note = ratings[b.id + "|" + datumKey(d)];
         if (note >= 1 && note <= 5) { summe += note; anzahl += 1; }
       });
@@ -1097,7 +1270,7 @@
   // Wochenschnitt = Durchschnitt aller echten Noten (1–5) der Woche; 0 und leere zählen nicht.
   function zeichneWochenschnitt(tage) {
     var summe = 0, anzahl = 0;
-    behaviors.forEach(function (b) {
+    behaviors.filter(function (b) { return b.eingabe === "note" && b.intervall === "taeglich"; }).forEach(function (b) {
       tage.forEach(function (d) {
         var note = ratings[b.id + "|" + datumKey(d)];
         if (note >= 1 && note <= 5) { summe += note; anzahl += 1; }
@@ -1114,34 +1287,55 @@
   /* ---- Verhalten hinzufügen / löschen ---- */
   // + legt eine neue Zeile an und macht sie direkt beschreibbar (kein prompt-Dialog nötig)
   function verhaltenHinzufuegen() {
-    var b = { id: neueId(), text: "", fertig: false, prioritaet: 2 };
-    behaviors.unshift(b);        // oben einfügen, damit gleich sichtbar
-    vhEditId = b.id;
-    zeichneVerhalten();          // noch nicht speichern – erst wenn ein Name da ist
-    var inp = document.querySelector('.vh-zeile[data-id="' + b.id + '"] .vh-text-input');
-    if (inp) inp.focus();
+    var b = normVerhalten({ id: neueId(), text: "" });
+    behaviors.unshift(b);
+    vhEditOeffnen(b.id, true);   // Einstell-Fenster für das neue Verhalten
   }
 
-  // Ein Verhalten umbenennen (Antippen des Textes)
-  function vhBearbeiten(id) {
-    vhEditId = id;
-    zeichneVerhalten();
-    var inp = document.querySelector('.vh-zeile[data-id="' + id + '"] .vh-text-input');
-    if (inp) { inp.focus(); inp.select(); }
+  /* ---- Verhalten-Bearbeiten-Fenster (Name, Intervall, Eingabe-Art, Einheit) ---- */
+  var vhEditState = null;
+  function vhEditOeffnen(id, neu) {
+    var b = behaviorNachId(id); if (!b) return;
+    vhEditState = { id: id, neu: !!neu, intervall: b.intervall, eingabe: b.eingabe, farbe: b.farbe || "" };
+    document.getElementById("vhedit-name").value = b.text;
+    document.getElementById("vhedit-einheit").value = b.einheit || "";
+    vhEditToggleUI();
+    document.getElementById("vh-edit").hidden = false;
+    document.getElementById("vhedit-name").focus();
   }
-
-  // Namen übernehmen; leer bleibt = Zeile wieder entfernen
-  function vhTextSpeichern(id, wert) {
-    var b = behaviorNachId(id);
-    if (!b) return;
-    var text = (wert || "").trim();
-    if (text === "") {
-      behaviors = behaviors.filter(function (x) { return x.id !== id; });
-    } else {
-      b.text = text;
+  function vhEditToggleUI() {
+    document.querySelectorAll("#vhedit-intervall button").forEach(function (btn) { btn.classList.toggle("aktiv", btn.dataset.w === vhEditState.intervall); });
+    document.querySelectorAll("#vhedit-eingabe button").forEach(function (btn) { btn.classList.toggle("aktiv", btn.dataset.w === vhEditState.eingabe); });
+    document.getElementById("vhedit-einheit-zeile").hidden = (vhEditState.eingabe !== "zahl");
+    document.getElementById("vhedit-farbe-zeile").hidden = (vhEditState.intervall !== "woechentlich");
+    document.querySelectorAll("#vhedit-farben button").forEach(function (btn) { btn.classList.toggle("aktiv", btn.dataset.color === vhEditState.farbe); });
+  }
+  function vhEditSchliessen() { document.getElementById("vh-edit").hidden = true; vhEditState = null; }
+  function vhEditSpeichern() {
+    if (!vhEditState) return;
+    var b = behaviorNachId(vhEditState.id); if (!b) { vhEditSchliessen(); return; }
+    var name = document.getElementById("vhedit-name").value.trim();
+    if (name === "") {   // ohne Namen nicht anlegen
+      behaviors = behaviors.filter(function (x) { return x.id !== vhEditState.id; });
+      vhEditSchliessen(); speichernVerhalten(); zeichneVerhalten(); return;
     }
-    vhEditId = null;
-    speichernVerhalten(); zeichneVerhalten();
+    b.text = name;
+    b.intervall = vhEditState.intervall;
+    b.eingabe = vhEditState.eingabe;
+    b.einheit = (vhEditState.eingabe === "zahl") ? document.getElementById("vhedit-einheit").value.trim() : "";
+    b.farbe = vhEditState.farbe || "";
+    vhEditSchliessen(); speichernVerhalten(); zeichneVerhalten();
+  }
+  function vhEditAbbrechen() {
+    if (vhEditState && vhEditState.neu) {   // frisch angelegtes, unbenanntes Verhalten wieder entfernen
+      var b = behaviorNachId(vhEditState.id);
+      if (b && b.text.trim() === "") behaviors = behaviors.filter(function (x) { return x.id !== vhEditState.id; });
+    }
+    vhEditSchliessen(); speichernVerhalten(); zeichneVerhalten();
+  }
+  function vhEditLoeschen() {
+    if (!vhEditState) return;
+    var id = vhEditState.id; vhEditSchliessen(); verhaltenLoeschen(id);
   }
   function verhaltenLoeschen(id) {
     behaviors = behaviors.filter(function (b) { return b.id !== id; });
@@ -1156,25 +1350,35 @@
   var pickerOverlay = document.getElementById("vh-picker");
   var aktuellePicker = null;   // { key }
 
-  function pickerOeffnen(b, d) {
-    aktuellePicker = { key: b.id + "|" + datumKey(d) };
+  function pickerOeffnen(b, key, unter) {
+    aktuellePicker = { key: key, b: b };
     document.getElementById("picker-titel").textContent = b.text;
-    document.getElementById("picker-unter").textContent =
-      WOCHENTAGE[(d.getDay() + 6) % 7] + ", " + kurzDatum(d) + d.getFullYear();
+    document.getElementById("picker-unter").textContent = unter;
 
     var knoepfe = document.getElementById("picker-knoepfe");
-    knoepfe.innerHTML = "";
-    [1, 2, 3, 4, 5, 0].forEach(function (n) {
-      var btn = document.createElement("button");
-      if (n === 0) { btn.style.background = "#fff"; btn.style.border = "1px solid var(--linie)"; btn.style.color = "var(--text-leise)"; }
-      else { btn.style.background = "var(--note" + n + ")"; btn.style.color = (n >= 4 ? "#fff" : "#1c2430"); }
-      btn.textContent = (n === 0 ? "–" : n);
-      btn.title = NOTE_NAME[n];
-      btn.onclick = function () { noteSetzen(n); };
-      knoepfe.appendChild(btn);
-    });
-    // vorhandene Notiz ins Textfeld laden
-    document.getElementById("picker-notiz").value = noteTexte[aktuellePicker.key] || "";
+    var zahlBox = document.getElementById("picker-zahl");
+    if (b.eingabe === "zahl") {
+      knoepfe.hidden = true; knoepfe.innerHTML = "";
+      zahlBox.hidden = false;
+      var w = ratings[key];
+      document.getElementById("picker-zahl-input").value = (w === undefined) ? "" : String(w).replace(".", ",");
+      document.getElementById("picker-zahl-einheit").textContent = b.einheit || "";
+    } else {
+      zahlBox.hidden = true;
+      knoepfe.hidden = false;
+      knoepfe.innerHTML = "";
+      [1, 2, 3, 4, 5, 0].forEach(function (n) {
+        var btn = document.createElement("button");
+        if (n === 0) { btn.style.background = "#fff"; btn.style.border = "1px solid var(--linie)"; btn.style.color = "var(--text-leise)"; }
+        else { btn.style.background = "var(--note" + n + ")"; btn.style.color = (n >= 4 ? "#fff" : "#1c2430"); }
+        btn.textContent = (n === 0 ? "–" : n);
+        btn.title = NOTE_NAME[n];
+        btn.onclick = function () { noteSetzen(n); };
+        knoepfe.appendChild(btn);
+      });
+    }
+    document.getElementById("picker-notiz").value = noteTexte[key] || "";
+    document.getElementById("picker-speichern").textContent = (b.eingabe === "zahl") ? "Speichern" : "Notiz speichern";
     pickerOverlay.hidden = false;
   }
   function pickerSchliessen() { pickerOverlay.hidden = true; aktuellePicker = null; }
@@ -1194,9 +1398,16 @@
     speichernRatings(); pickerSchliessen(); zeichneVerhalten();
     if (n === 1 || n === 2) rockhornsShow();   // 🤘 Feier bei guter Note
   }
-  function nurNotizSpeichern() {
+  function pickerSpeichern() {
     if (!aktuellePicker) return;
-    notizAusFeldUebernehmen();        // nur die Notiz, Note bleibt unverändert
+    var b = aktuellePicker.b;
+    if (b.eingabe === "zahl") {   // Zahl übernehmen (leer = Eintrag entfernen)
+      var roh = document.getElementById("picker-zahl-input").value.trim().replace(",", ".");
+      if (roh === "") delete ratings[aktuellePicker.key];
+      else { var z = parseFloat(roh); if (!isNaN(z)) ratings[aktuellePicker.key] = z; }
+      speichernRatings();
+    }
+    notizAusFeldUebernehmen();
     pickerSchliessen(); zeichneVerhalten();
   }
   function noteLoeschen() {
@@ -1206,10 +1417,25 @@
     speichernRatings(); speichernNotizen(); pickerSchliessen(); zeichneVerhalten();
   }
 
-  document.getElementById("picker-speichern").onclick = nurNotizSpeichern;
+  document.getElementById("picker-speichern").onclick = pickerSpeichern;
   document.getElementById("picker-leeren").onclick = noteLoeschen;
   document.getElementById("picker-abbrechen").onclick = pickerSchliessen;
   pickerOverlay.onclick = function (e) { if (e.target === pickerOverlay) pickerSchliessen(); };
+
+  // Bearbeiten-Fenster verdrahten
+  document.getElementById("vhedit-speichern").onclick = vhEditSpeichern;
+  document.getElementById("vhedit-loeschen").onclick = vhEditLoeschen;
+  document.getElementById("vhedit-abbrechen").onclick = vhEditAbbrechen;
+  document.getElementById("vh-edit").onclick = function (e) { if (e.target.id === "vh-edit") vhEditAbbrechen(); };
+  document.querySelectorAll("#vhedit-intervall button").forEach(function (btn) {
+    btn.onclick = function () { vhEditState.intervall = btn.dataset.w; vhEditToggleUI(); };
+  });
+  document.querySelectorAll("#vhedit-eingabe button").forEach(function (btn) {
+    btn.onclick = function () { vhEditState.eingabe = btn.dataset.w; vhEditToggleUI(); };
+  });
+  document.querySelectorAll("#vhedit-farben button").forEach(function (btn) {
+    btn.onclick = function () { vhEditState.farbe = btn.dataset.color; vhEditToggleUI(); };
+  });
 
   /* ---- Wochen-Navigation: Pfeile + Wischen ---- */
   document.getElementById("vh-zurueck").onclick = function () { wochenOffset -= 1; zeichneVerhalten(); };
@@ -1535,6 +1761,185 @@
   document.getElementById("backup-email").onclick = backupEmail;
   document.getElementById("backup-schliessen").onclick = backupSchliessen;
   backupDialog.onclick = function (e) { if (e.target === backupDialog) backupSchliessen(); };
+
+
+  /* ================================================================
+     CLOUD-SYNC (Supabase) mit Ende-zu-Ende-Verschlüsselung
+     Login per E-Mail/Passwort; die Daten werden VOR dem Hochladen auf
+     dem Gerät mit einem Master-Passwort verschlüsselt (AES-GCM). In der
+     Cloud liegt nur ein unlesbarer Block – nur du kannst ihn entschlüsseln.
+     ================================================================ */
+  var SB_URL = "https://tvsnrcnmoqmkmxbthnux.supabase.co";
+  var SB_KEY = "sb_publishable_fAMYfeAEs0dZ64KEquSfnw_TNjUdInH";
+  var sb = null;
+  try { if (window.supabase && window.supabase.createClient) sb = window.supabase.createClient(SB_URL, SB_KEY); } catch (e) { sb = null; }
+
+  var cloudUser = null;
+  var cloudPass = localStorage.getItem("change-app-e2ee") || null;
+  var cloudDirtyFlag = false, cloudPushTimer = null, cloudSyncLaeuft = false;
+  var _setItemRoh = localStorage.setItem.bind(localStorage);
+
+  function cloudAktiv() { return !!(sb && cloudUser && cloudPass); }
+
+  // App-Datenänderungen (localStorage) lösen automatisch einen Cloud-Push aus
+  localStorage.setItem = function (k, v) {
+    _setItemRoh(k, v);
+    if (typeof BACKUP_KEYS !== "undefined" && BACKUP_KEYS.indexOf(k) >= 0) cloudDirty();
+  };
+
+  /* ---- Krypto (PBKDF2 → AES-GCM) ---- */
+  function _b64(buf) { return btoa(String.fromCharCode.apply(null, new Uint8Array(buf))); }
+  function _unb64(s) { return Uint8Array.from(atob(s), function (c) { return c.charCodeAt(0); }); }
+  async function _key(pass, salt) {
+    var base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pass), "PBKDF2", false, ["deriveKey"]);
+    return crypto.subtle.deriveKey({ name: "PBKDF2", salt: salt, iterations: 150000, hash: "SHA-256" },
+      base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+  }
+  async function cloudVerschluesseln(obj, pass) {
+    var salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+    var key = await _key(pass, salt);
+    var ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, key, new TextEncoder().encode(JSON.stringify(obj)));
+    return JSON.stringify({ v: 1, salt: _b64(salt), iv: _b64(iv), ct: _b64(ct) });
+  }
+  async function cloudEntschluesseln(str, pass) {
+    var o = JSON.parse(str), key = await _key(pass, _unb64(o.salt));
+    var pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: _unb64(o.iv) }, key, _unb64(o.ct));
+    return JSON.parse(new TextDecoder().decode(pt));
+  }
+
+  /* ---- Zustand sammeln / anwenden ---- */
+  function cloudZustand() { var s = {}; BACKUP_KEYS.forEach(function (k) { s[k] = localStorage.getItem(k); }); return s; }
+  function cloudZustandAnwenden(s) {
+    BACKUP_KEYS.forEach(function (k) { if (s[k] == null) localStorage.removeItem(k); else _setItemRoh(k, s[k]); });
+  }
+
+  /* ---- Push / Pull / Erst-Sync ---- */
+  function cloudDirty() {
+    if (!cloudAktiv()) return;
+    cloudDirtyFlag = true;
+    clearTimeout(cloudPushTimer);
+    cloudPushTimer = setTimeout(function () { cloudPush(); }, 1500);
+    cloudStatusText("Änderung – wird synchronisiert…");
+  }
+  async function cloudPush() {
+    if (!cloudAktiv() || cloudSyncLaeuft) return;
+    cloudSyncLaeuft = true;
+    try {
+      var blob = await cloudVerschluesseln(cloudZustand(), cloudPass);
+      var jetzt = new Date().toISOString();
+      var res = await sb.from("app_state").upsert({ user_id: cloudUser.id, data: blob, updated_at: jetzt });
+      if (res.error) throw res.error;
+      cloudDirtyFlag = false; _setItemRoh("change-app-cloud-sync", jetzt);
+      cloudStatusText("Synchronisiert ✓ " + new Date().toLocaleTimeString("de-AT"));
+    } catch (e) { cloudStatusText("Offline – Änderung wird später gesichert."); }
+    cloudSyncLaeuft = false;
+  }
+  async function cloudPull() {
+    if (!cloudAktiv()) return false;
+    var res = await sb.from("app_state").select("data, updated_at").eq("user_id", cloudUser.id).maybeSingle();
+    if (res.error || !res.data || !res.data.data) return false;
+    var obj;
+    try { obj = await cloudEntschluesseln(res.data.data, cloudPass); }
+    catch (e) { alert("Entschlüsselung fehlgeschlagen – stimmt das Master-Passwort auf diesem Gerät?"); return false; }
+    cloudZustandAnwenden(obj);
+    _setItemRoh("change-app-cloud-sync", res.data.updated_at);
+    location.reload();
+    return true;
+  }
+  async function cloudInitSync() {
+    if (!cloudAktiv()) return;
+    cloudStatusText("Synchronisiere…");
+    try {
+      var res = await sb.from("app_state").select("updated_at").eq("user_id", cloudUser.id).maybeSingle();
+      var cloudTime = (res.data && res.data.updated_at) ? res.data.updated_at : null;
+      var lokal = localStorage.getItem("change-app-cloud-sync");
+      if (cloudTime && (!lokal || cloudTime > lokal)) {
+        if (cloudDirtyFlag && !confirm("In der Cloud liegt ein neuerer Stand. Lokale, noch nicht hochgeladene Änderungen könnten überschrieben werden. Cloud-Stand laden?")) { cloudStatusText("Abgebrochen."); return; }
+        await cloudPull();
+      } else {
+        await cloudPush();
+      }
+    } catch (e) { cloudStatusText("Offline – Sync folgt später."); }
+  }
+
+  /* ---- Cloud-Dialog / Anmeldung ---- */
+  var cloudDialog = document.getElementById("cloud-dialog");
+  function cloudStatusText(t) { var el = document.getElementById("cloud-status"); if (el) el.textContent = t; }
+  function cloudUIAktualisieren() {
+    var eingeloggt = !!cloudUser, frei = !!cloudPass;
+    document.getElementById("cloud-login").hidden = eingeloggt;
+    document.getElementById("cloud-pass").hidden = !(eingeloggt && !frei);
+    document.getElementById("cloud-account").hidden = !(eingeloggt && frei);
+    if (!sb) cloudStatusText("Cloud-Baustein nicht geladen (bist du offline?).");
+    else if (!eingeloggt) cloudStatusText("Melde dich an, um über alle Geräte zu synchronisieren.");
+    else if (!frei) cloudStatusText("Angemeldet als " + cloudUser.email + ". Jetzt Master-Passwort setzen/eingeben.");
+    else cloudStatusText("Angemeldet als " + cloudUser.email + " – Sync aktiv.");
+  }
+  function cloudOeffnen() { cloudUIAktualisieren(); cloudDialog.hidden = false; }
+  function cloudSchliessen() { cloudDialog.hidden = true; }
+
+  async function cloudAnmelden(neu) {
+    if (!sb) { cloudStatusText("Cloud nicht verfügbar."); return; }
+    var email = document.getElementById("cloud-email").value.trim();
+    var pw = document.getElementById("cloud-pw").value;
+    if (!email || !pw) { cloudStatusText("Bitte E-Mail und Passwort eingeben."); return; }
+    cloudStatusText(neu ? "Registriere…" : "Melde an…");
+    var res = neu ? await sb.auth.signUp({ email: email, password: pw })
+                  : await sb.auth.signInWithPassword({ email: email, password: pw });
+    if (res.error) { cloudStatusText("Fehler: " + res.error.message); return; }
+    var session = res.data && res.data.session;
+    if (!session) {
+      cloudStatusText(neu
+        ? "Fast fertig: Bestätigungs-Mail gesendet – bitte in deiner E-Mail bestätigen, dann hier anmelden."
+        : "Anmeldung nicht möglich (E-Mail evtl. noch nicht bestätigt?).");
+      return;
+    }
+    cloudUser = session.user;
+    cloudUIAktualisieren();
+  }
+  async function cloudFreischalten() {
+    var mp = document.getElementById("cloud-master").value;
+    if (!mp || mp.length < 6) { cloudStatusText("Master-Passwort: mindestens 6 Zeichen."); return; }
+    cloudStatusText("Prüfe Master-Passwort…");
+    try {
+      var res = await sb.from("app_state").select("data").eq("user_id", cloudUser.id).maybeSingle();
+      if (res.data && res.data.data) {   // es gibt schon Cloud-Daten → Passwort muss passen
+        try { await cloudEntschluesseln(res.data.data, mp); }
+        catch (e) { cloudStatusText("Falsches Master-Passwort – es passt nicht zu deinen Cloud-Daten."); return; }
+      }
+    } catch (e) { /* offline: ohne Prüfung fortfahren */ }
+    cloudPass = mp; _setItemRoh("change-app-e2ee", mp);
+    cloudUIAktualisieren();
+    cloudInitSync();
+  }
+  async function cloudAbmelden() {
+    try { if (sb) await sb.auth.signOut(); } catch (e) {}
+    cloudUser = null; cloudPass = null;
+    localStorage.removeItem("change-app-e2ee");
+    cloudUIAktualisieren();
+  }
+
+  if (cloudDialog) {
+    document.getElementById("backup-cloud").onclick = function () { backupSchliessen(); cloudOeffnen(); };
+    document.getElementById("cloud-anmelden").onclick = function () { cloudAnmelden(false); };
+    document.getElementById("cloud-registrieren").onclick = function () { cloudAnmelden(true); };
+    document.getElementById("cloud-freischalten").onclick = cloudFreischalten;
+    document.getElementById("cloud-jetzt-sync").onclick = cloudInitSync;
+    document.getElementById("cloud-abmelden").onclick = cloudAbmelden;
+    document.getElementById("cloud-schliessen").onclick = cloudSchliessen;
+    cloudDialog.onclick = function (e) { if (e.target === cloudDialog) cloudSchliessen(); };
+  }
+
+  // beim Start: bestehende Anmeldung erkennen und synchronisieren
+  if (sb) {
+    sb.auth.getSession().then(function (res) {
+      if (res.data && res.data.session) {
+        cloudUser = res.data.session.user;
+        cloudUIAktualisieren();
+        if (cloudPass) cloudInitSync();
+      }
+    });
+  }
 </script>
 </body>
 </html>
