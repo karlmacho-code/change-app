@@ -194,7 +194,7 @@
     .woche-titel small { display: block; font-weight: 400; color: var(--text-leise); font-size: 11px; margin-top: 1px; }
 
     /* Das Raster: jede Zeile ist EIN Flex-Element (nötig fürs Verschieben) */
-    .vh-gitter-wrap { overflow-x: auto; touch-action: pan-y; }  /* pan-y: senkrecht scrollen ok, waagrecht = Wischen */
+    .vh-gitter-wrap { overflow-x: auto; touch-action: pan-x pan-y; -webkit-overflow-scrolling: touch; }  /* im Hochformat waagrecht scrollbar */
     .vh-gitter { min-width: 520px; }
     .vh-kopfzeile, .vh-zeile { display: flex; gap: 3px; margin-bottom: 3px; align-items: stretch; }
 
@@ -364,7 +364,7 @@
     .tab-log-notiz {
       display: block; box-sizing: border-box; width: 100%; margin-top: 8px; padding: 8px 10px;
       font: inherit; font-size: 14px; line-height: 1.4; outline: none;
-      resize: none; overflow: hidden; min-height: 38px;
+      resize: vertical; overflow-y: auto; min-height: 38px;
       color: var(--text); background: var(--karte); border: 1px solid var(--linie); border-radius: 8px;
     }
     .tab-log-notiz:focus { border-color: var(--akzent); }
@@ -494,7 +494,7 @@
         </nav>
       </div>
 
-      <div class="quer-hinweis">📱↻ Tipp: Dreh dein Handy quer für die beste Übersicht.</div>
+      <div class="quer-hinweis">📱↔ Tipp: Seitlich wischen zeigt die ganze Woche – oder quer drehen.</div>
 
       <div class="vh-gitter-wrap" id="vh-gitter-wrap">
         <div class="vh-gitter" id="vh-gitter"></div>
@@ -522,7 +522,7 @@
         </nav>
       </div>
 
-      <div class="quer-hinweis">📱↻ Tipp: Dreh dein Handy quer für die beste Übersicht.</div>
+      <div class="quer-hinweis">📱↔ Tipp: Seitlich wischen zeigt die ganze Woche – oder quer drehen.</div>
 
       <div class="vh-gitter-wrap">
         <div class="vh-gitter" id="tab-gitter"></div>
@@ -1530,20 +1530,8 @@
   document.getElementById("vh-vor").onclick = function () { wochenOffset += 1; zeichneVerhalten(); };
   document.getElementById("vh-heute").onclick = function () { wochenOffset = 0; zeichneVerhalten(); };
 
-  var wrap = document.getElementById("vh-gitter-wrap");
-  var wischStartX = 0, wischStartY = 0, wischAktiv = false, letzterWisch = 0;
-  wrap.addEventListener("pointerdown", function (e) {
-    wischStartX = e.clientX; wischStartY = e.clientY; wischAktiv = true;
-  });
-  wrap.addEventListener("pointerup", function (e) {
-    if (!wischAktiv) return; wischAktiv = false;
-    var dx = e.clientX - wischStartX, dy = e.clientY - wischStartY;
-    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
-      letzterWisch = Date.now();
-      wochenOffset += (dx < 0 ? 1 : -1);   // nach links wischen = nächste Woche
-      zeichneVerhalten();
-    }
-  });
+  // (Waagrechte Wisch-Geste entfernt: die Wochenansicht wird jetzt quer gescrollt.
+  //  Woche wechseln geht über die Pfeile ‹ › und den 📅-Button.)
 
   document.getElementById("vh-hinzu").onclick = verhaltenHinzufuegen;
 
@@ -1770,17 +1758,25 @@
     }
     tabLogRender();
     tabPickerOverlay.hidden = false;
-    // Höhe erst berechnen, wenn das Fenster sichtbar ist (sonst ist scrollHeight 0)
+    // Höhe erst berechnen, wenn das Fenster sichtbar ist und die Breite endgültig steht
     requestAnimationFrame(tabLogGrowAll);
+    setTimeout(tabLogGrowAll, 90);   // Nachmessen (späte Layout-/Font-Anpassung)
   }
   function tabPickerSchliessen() { tabPickerOverlay.hidden = true; tabAktuellKey = null; }
 
   // Notizfeld an seinen Inhalt anpassen (wächst mit den Zeilen; Rahmen mitrechnen)
+  function tabNotizRand(el) { return el.offsetHeight - el.clientHeight; }   // obere+untere Rahmenstärke
+  // exakt an den Inhalt anpassen (für Öffnen/Neuzeichnen/Drehen)
   function tabNotizGrow(el) {
     el.style.height = "auto";
-    el.style.height = (el.scrollHeight + el.offsetHeight - el.clientHeight) + "px";
+    el.style.height = (el.scrollHeight + tabNotizRand(el)) + "px";
+  }
+  // nur vergrößern, wenn der Text nicht mehr reinpasst (behält manuell größer Gezogenes)
+  function tabNotizWachsen(el) {
+    if (el.scrollHeight > el.clientHeight) el.style.height = (el.scrollHeight + tabNotizRand(el)) + "px";
   }
   function tabLogGrowAll() {
+    if (tabPickerOverlay.hidden) return;   // versteckt: Messung wäre 0
     document.querySelectorAll("#tabpicker-liste .tab-log-notiz").forEach(tabNotizGrow);
   }
 
@@ -1834,7 +1830,7 @@
       var notiz = document.createElement("textarea");
       notiz.className = "tab-log-notiz"; notiz.value = e.notiz || "";
       notiz.placeholder = "Notiz / Info (optional)…"; notiz.maxLength = 300; notiz.rows = 1;
-      notiz.oninput = function () { tabLogEintraege[idx].notiz = notiz.value; tabNotizGrow(notiz); };
+      notiz.oninput = function () { tabLogEintraege[idx].notiz = notiz.value; tabNotizWachsen(notiz); };
       karte.appendChild(notiz);
 
       liste.appendChild(karte);
@@ -1876,6 +1872,7 @@
     if (hatteEintraege && anzahl === 0) rockhornsShow();   // Tag erfasst, keine Tablette → 🤘
   }
 
+  window.addEventListener("resize", tabLogGrowAll);   // bei Drehen/Breitenänderung Notizhöhen neu anpassen
   document.getElementById("tabpicker-neu").onclick = tabLogNeu;
   document.getElementById("tabpicker-speichern").onclick = tabSpeichern;
   document.getElementById("tabpicker-abbrechen").onclick = tabPickerSchliessen;
