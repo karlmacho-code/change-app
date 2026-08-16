@@ -517,6 +517,8 @@
         <div class="picker-zahl" id="picker-zahl" hidden>
           <input id="picker-zahl-input" type="text" inputmode="decimal" placeholder="Zahl">
           <div class="picker-zahl-einheit" id="picker-zahl-einheit"></div>
+          <input id="picker-zahl-min" type="text" inputmode="numeric" placeholder="Min" hidden>
+          <div class="picker-zahl-einheit" id="picker-zahl-min-label" hidden>Min</div>
         </div>
       </div>
       <div class="picker-zusatz">
@@ -1354,7 +1356,9 @@
 
   /* ---- Auswahl-Fenster (Picker) ---- */
   var pickerOverlay = document.getElementById("vh-picker");
-  var aktuellePicker = null;   // { key }
+  var aktuellePicker = null;
+  // Einheit ist "Stunden"? (dann kann man auch Minuten eingeben)
+  function istStunden(e) { return /^(std|stunde|stunden|h)$/i.test((e || "").trim()); }   // { key }
 
   function pickerOeffnen(b, key, unter) {
     aktuellePicker = { key: key, b: b };
@@ -1367,8 +1371,26 @@
       knoepfe.hidden = true; knoepfe.innerHTML = "";
       zahlBox.hidden = false;
       var w = ratings[key];
-      document.getElementById("picker-zahl-input").value = (w === undefined) ? "" : String(w).replace(".", ",");
-      document.getElementById("picker-zahl-einheit").textContent = b.einheit || "";
+      var inp = document.getElementById("picker-zahl-input");
+      var minInp = document.getElementById("picker-zahl-min");
+      var minLbl = document.getElementById("picker-zahl-min-label");
+      if (istStunden(b.einheit)) {
+        // Stunden + Minuten getrennt anzeigen
+        minInp.hidden = false; minLbl.hidden = false;
+        inp.placeholder = "Std";
+        document.getElementById("picker-zahl-einheit").textContent = "Std";
+        if (w === undefined) { inp.value = ""; minInp.value = ""; }
+        else {
+          var std = Math.floor(w), min = Math.round((w - std) * 60);
+          if (min === 60) { std += 1; min = 0; }
+          inp.value = std ? String(std) : ""; minInp.value = min ? String(min) : "";
+        }
+      } else {
+        minInp.hidden = true; minLbl.hidden = true;
+        inp.placeholder = "Zahl";
+        inp.value = (w === undefined) ? "" : String(w).replace(".", ",");
+        document.getElementById("picker-zahl-einheit").textContent = b.einheit || "";
+      }
     } else {
       zahlBox.hidden = true;
       knoepfe.hidden = false;
@@ -1408,9 +1430,19 @@
     if (!aktuellePicker) return;
     var b = aktuellePicker.b;
     if (b.eingabe === "zahl") {   // Zahl übernehmen (leer = Eintrag entfernen)
+      var key = aktuellePicker.key;
       var roh = document.getElementById("picker-zahl-input").value.trim().replace(",", ".");
-      if (roh === "") delete ratings[aktuellePicker.key];
-      else { var z = parseFloat(roh); if (!isNaN(z)) ratings[aktuellePicker.key] = z; }
+      if (istStunden(b.einheit)) {   // Std + Min → Dezimalstunden
+        var minRoh = document.getElementById("picker-zahl-min").value.trim().replace(",", ".");
+        if (roh === "" && minRoh === "") { delete ratings[key]; }
+        else {
+          var std = parseFloat(roh) || 0, min = parseFloat(minRoh) || 0;
+          ratings[key] = Math.round((std + min / 60) * 1000) / 1000;
+        }
+      } else {
+        if (roh === "") delete ratings[key];
+        else { var z = parseFloat(roh); if (!isNaN(z)) ratings[key] = z; }
+      }
       speichernRatings();
     }
     notizAusFeldUebernehmen();
