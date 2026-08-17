@@ -372,14 +372,28 @@
     /* Griff (drei Striche) zum Größerziehen des Notizfeldes */
     .tab-log-griff {
       display: flex; align-items: center; justify-content: center;
-      height: 20px; cursor: ns-resize; touch-action: none; user-select: none; -webkit-user-select: none;
+      height: 30px; margin-top: 2px; cursor: ns-resize;
+      touch-action: none; user-select: none; -webkit-user-select: none;
     }
     .tab-log-griff-linien {
-      width: 34px; height: 10px; border-radius: 2px; opacity: .55;
-      background: repeating-linear-gradient(to bottom,
-        var(--text-leise) 0, var(--text-leise) 2px, transparent 2px, transparent 4px);
+      width: 50px; height: 18px; border-radius: 9px;
+      border: 1px solid var(--linie); background-color: var(--karte);
+      background-image: repeating-linear-gradient(to bottom,
+        var(--text-leise) 0, var(--text-leise) 2px, transparent 2px, transparent 5px);
+      background-repeat: no-repeat; background-position: center; background-size: 26px 13px;
     }
-    .tab-log-griff:active .tab-log-griff-linien { opacity: 1; }
+    .tab-log-griff:active .tab-log-griff-linien { border-color: var(--akzent); background-color: rgba(79,124,255,0.08); }
+    /* Notiz-Zeile mit Mikrofon-Button */
+    .tab-log-notiz-reihe { display: flex; gap: 6px; align-items: stretch; }
+    .tab-log-notiz-reihe .tab-log-notiz { flex: 1; min-width: 0; }
+    .tab-log-mic {
+      flex: 0 0 auto; align-self: flex-start; width: 40px; height: 40px; padding: 0;
+      border: 1px solid var(--linie); border-radius: 8px; background: var(--karte);
+      font-size: 18px; line-height: 1; cursor: pointer;
+    }
+    .tab-log-mic.aktiv { background: #e5484d; border-color: #e5484d; animation: micPuls 1s ease-in-out infinite; }
+    @keyframes micPuls { 0%,100% { box-shadow: 0 0 0 0 rgba(229,72,77,.5); } 50% { box-shadow: 0 0 0 6px rgba(229,72,77,0); } }
+    .tab-log-mic-hinweis { margin-top: 4px; font-size: 12px; color: var(--text-leise); text-align: center; }
 
     /* Kopfweh-Eingabefenster über die volle Bildschirmhöhe */
     #tab-picker .picker-box {
@@ -1774,7 +1788,7 @@
     requestAnimationFrame(tabLogGrowAll);
     setTimeout(tabLogGrowAll, 90);   // Nachmessen (späte Layout-/Font-Anpassung)
   }
-  function tabPickerSchliessen() { tabPickerOverlay.hidden = true; tabAktuellKey = null; }
+  function tabPickerSchliessen() { tabSpracheStop(); tabPickerOverlay.hidden = true; tabAktuellKey = null; }
 
   // Notizfeld an seinen Inhalt anpassen (wächst mit den Zeilen; Rahmen mitrechnen)
   function tabNotizRand(el) { return el.offsetHeight - el.clientHeight; }   // obere+untere Rahmenstärke
@@ -1807,6 +1821,46 @@
     function ende(e) { if (ziehe) { ziehe = false; try { griff.releasePointerCapture(e.pointerId); } catch (_) {} } }
     griff.addEventListener("pointerup", ende);
     griff.addEventListener("pointercancel", ende);
+  }
+
+  // Spracheingabe (Mikrofon → Text) über die eingebaute Diktier-KI des Browsers/Handys
+  var tabSpracheKlasse = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var tabErkennung = null;   // gerade laufende Erkennung (nur eine gleichzeitig)
+  function tabSpracheStop() { if (tabErkennung) { try { tabErkennung.stop(); } catch (_) {} } }
+  function tabMicAktivieren(mic, notiz, idx, hinweis) {
+    if (!tabSpracheKlasse) { mic.style.display = "none"; return; }   // Gerät kann keine Spracheingabe → Button weg
+    mic.onclick = function () {
+      if (tabErkennung) { tabSpracheStop(); return; }   // läuft schon → stoppen (Ein/Aus)
+      var r = new tabSpracheKlasse();
+      r.lang = "de-AT"; r.continuous = true; r.interimResults = true;
+      var basis = notiz.value;
+      tabErkennung = r;
+      mic.classList.add("aktiv"); mic.textContent = "⏹";
+      hinweis.textContent = "🎤 Ich höre zu … (zum Beenden Mikrofon tippen)"; hinweis.hidden = false;
+      r.onresult = function (e) {
+        var txt = "";
+        for (var i = 0; i < e.results.length; i++) txt += e.results[i][0].transcript;
+        notiz.value = basis ? (basis.replace(/\s+$/, "") + " " + txt) : txt;
+        tabLogEintraege[idx].notiz = notiz.value;
+        tabNotizWachsen(notiz);
+      };
+      r.onerror = function (e) {
+        var c = e && e.error;
+        hinweis.textContent = (c === "not-allowed" || c === "service-not-allowed")
+          ? "Mikrofon nicht erlaubt – bitte in den Einstellungen für diese Seite freigeben."
+          : (c === "no-speech" ? "Nichts gehört – bitte nochmal tippen und sprechen."
+          : "Spracheingabe gerade nicht möglich" + (c ? " (" + c + ")" : "") + ".");
+        hinweis.dataset.fehler = "1";
+      };
+      r.onend = function () {
+        mic.classList.remove("aktiv"); mic.textContent = "🎤";
+        tabErkennung = null;
+        if (hinweis.dataset.fehler !== "1") hinweis.hidden = true;   // Fehlermeldung stehen lassen
+        delete hinweis.dataset.fehler;
+      };
+      hinweis.dataset.fehler = "";
+      try { r.start(); } catch (err) { r.onerror({ error: "start" }); r.onend(); }
+    };
   }
 
   // Kompakte Skala 1–10 (leer = nicht angegeben). Platzhalter zeigt den Namen,
@@ -1857,14 +1911,20 @@
       karte.appendChild(kopf);
 
       var notizWrap = document.createElement("div"); notizWrap.className = "tab-log-notiz-wrap";
+      var reihe = document.createElement("div"); reihe.className = "tab-log-notiz-reihe";
       var notiz = document.createElement("textarea");
       notiz.className = "tab-log-notiz"; notiz.value = e.notiz || "";
       notiz.placeholder = "Notiz / Info (optional)…"; notiz.maxLength = 300; notiz.rows = 1;
       notiz.oninput = function () { tabLogEintraege[idx].notiz = notiz.value; tabNotizWachsen(notiz); };
+      var mic = document.createElement("button"); mic.type = "button"; mic.className = "tab-log-mic";
+      mic.textContent = "🎤"; mic.title = "Per Mikrofon diktieren";
+      reihe.appendChild(notiz); reihe.appendChild(mic);
       var griff = document.createElement("div"); griff.className = "tab-log-griff"; griff.title = "Zum Vergrößern nach unten ziehen";
       var linien = document.createElement("div"); linien.className = "tab-log-griff-linien"; griff.appendChild(linien);
       tabGriffAktivieren(griff, notiz);
-      notizWrap.appendChild(notiz); notizWrap.appendChild(griff);
+      var hinweis = document.createElement("div"); hinweis.className = "tab-log-mic-hinweis"; hinweis.hidden = true;
+      tabMicAktivieren(mic, notiz, idx, hinweis);
+      notizWrap.appendChild(reihe); notizWrap.appendChild(griff); notizWrap.appendChild(hinweis);
       karte.appendChild(notizWrap);
 
       liste.appendChild(karte);
