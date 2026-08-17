@@ -1834,50 +1834,70 @@
     griff.addEventListener("pointercancel", ende);
   }
 
-  // Spracheingabe (Mikrofon → Text) über die eingebaute Diktier-KI des Browsers/Handys
-  var tabSpracheKlasse = window.SpeechRecognition || window.webkitSpeechRecognition;
-  var tabErkennung = null;   // gerade laufende Erkennung (nur eine gleichzeitig)
-  function tabSpracheStop() { if (tabErkennung) { try { tabErkennung.stop(); } catch (_) {} } }
+  // Spracheingabe: aufnehmen → an KI (Groq Whisper über Supabase Edge Function) → sauberer Text zurück
+  var tabAufnahme = null;   // laufende Aufnahme (nur eine gleichzeitig)
+  function tabSpracheStop() { try { if (tabAufnahme && tabAufnahme.state !== "inactive") tabAufnahme.stop(); } catch (_) {} }
+  function tabBlobBase64(blob) {
+    return new Promise(function (res, rej) {
+      var r = new FileReader();
+      r.onload = function () { res(String(r.result).split(",")[1]); };
+      r.onerror = rej; r.readAsDataURL(blob);
+    });
+  }
+  async function tabTranskribiere(blob) {
+    var b64 = await tabBlobBase64(blob);
+    var res = await fetch(SB_URL + "/functions/v1/transcribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY },
+      body: JSON.stringify({ audio: b64, mime: blob.type || "audio/mp4" })
+    });
+    var data = null; try { data = await res.json(); } catch (_) {}
+    if (!res.ok) throw new Error((data && data.error) ? data.error : ("Server " + res.status));
+    return ((data && data.text) || "").trim();
+  }
   function tabMicAktivieren(mic, notiz, idx, hinweis) {
-    if (!tabSpracheKlasse) { mic.style.display = "none"; return; }   // Gerät kann keine Spracheingabe → Button weg
-    mic.onclick = function () {
-      if (tabErkennung) { tabSpracheStop(); return; }   // läuft schon → stoppen (Ein/Aus)
-      var r = new tabSpracheKlasse();
-      r.lang = "de-AT"; r.continuous = true; r.interimResults = true;
-      var basis = notiz.value;
-      tabErkennung = r;
-      mic.classList.add("aktiv"); mic.textContent = "⏹";
-      hinweis.textContent = "🎤 Ich höre zu … (zum Beenden Mikrofon tippen)"; hinweis.hidden = false;
-      r.onresult = function (e) {
-        var txt = "";
-        for (var i = 0; i < e.results.length; i++) txt += e.results[i][0].transcript;
-        notiz.value = basis ? (basis.replace(/\s+$/, "") + " " + txt) : txt;
-        tabLogEintraege[idx].notiz = notiz.value;
-        tabNotizWachsen(notiz);
-      };
-      r.onerror = function (e) {
-        var c = e && e.error;
+    if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder)) {
+      mic.style.display = "none"; return;   // Gerät kann nicht aufnehmen → Button weg
+    }
+    mic.onclick = async function () {
+      if (tabAufnahme) { tabSpracheStop(); return; }   // läuft → stoppen
+      var stream;
+      try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+      catch (e) {
         var vollbild = window.navigator.standalone === true ||
           (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
-        if (c === "not-allowed" || c === "service-not-allowed") {
-          hinweis.textContent = vollbild
-            ? "Im Home-Bildschirm-Modus sperrt iOS das Mikrofon. Bitte die Seite in Safari öffnen und dort diktieren."
-            : "Mikrofon nicht erlaubt – beim Nachfragen „Erlauben“ tippen (bzw. Einstellungen → Safari → Mikrofon → „Fragen“).";
-        } else if (c === "no-speech") {
-          hinweis.textContent = "Nichts gehört – bitte nochmal tippen und sprechen.";
-        } else {
-          hinweis.textContent = "Spracheingabe gerade nicht möglich" + (c ? " (" + c + ")" : "") + ".";
+        hinweis.hidden = false;
+        hinweis.textContent = vollbild
+          ? "Mikrofon eventuell gesperrt – sonst beim Nachfragen „Erlauben“ tippen."
+          : "Mikrofon nicht erlaubt – beim Nachfragen „Erlauben“ tippen.";
+        return;
+      }
+      var rec = new MediaRecorder(stream);
+      var chunks = [];
+      rec.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
+      rec.onstop = async function () {
+        stream.getTracks().forEach(function (t) { t.stop(); });
+        mic.classList.remove("aktiv"); mic.textContent = "🎤"; tabAufnahme = null;
+        var blob = new Blob(chunks, { type: rec.mimeType || "audio/mp4" });
+        if (!blob.size) { hinweis.hidden = false; hinweis.textContent = "Nichts aufgenommen – bitte nochmal versuchen."; return; }
+        mic.disabled = true; hinweis.hidden = false; hinweis.textContent = "✍️ Wird per KI umgewandelt …";
+        try {
+          var text = await tabTranskribiere(blob);
+          if (text) {
+            var basis = notiz.value;
+            notiz.value = basis ? (basis.replace(/\s+$/, "") + " " + text) : text;
+            tabLogEintraege[idx].notiz = notiz.value; tabNotizWachsen(notiz);
+            hinweis.hidden = true;
+          } else { hinweis.textContent = "Nichts erkannt – bitte nochmal versuchen."; }
+        } catch (err) {
+          hinweis.textContent = "Umwandlung fehlgeschlagen: " + (err && err.message ? err.message : err);
         }
-        hinweis.dataset.fehler = "1";
+        mic.disabled = false;
       };
-      r.onend = function () {
-        mic.classList.remove("aktiv"); mic.textContent = "🎤";
-        tabErkennung = null;
-        if (hinweis.dataset.fehler !== "1") hinweis.hidden = true;   // Fehlermeldung stehen lassen
-        delete hinweis.dataset.fehler;
-      };
-      hinweis.dataset.fehler = "";
-      try { r.start(); } catch (err) { r.onerror({ error: "start" }); r.onend(); }
+      tabAufnahme = rec;
+      mic.classList.add("aktiv"); mic.textContent = "⏹";
+      hinweis.hidden = false; hinweis.textContent = "🎤 Ich nehme auf … (zum Beenden Mikrofon tippen)";
+      rec.start();
     };
   }
 
