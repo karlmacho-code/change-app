@@ -1846,10 +1846,17 @@
       };
       r.onerror = function (e) {
         var c = e && e.error;
-        hinweis.textContent = (c === "not-allowed" || c === "service-not-allowed")
-          ? "Mikrofon nicht erlaubt – bitte in den Einstellungen für diese Seite freigeben."
-          : (c === "no-speech" ? "Nichts gehört – bitte nochmal tippen und sprechen."
-          : "Spracheingabe gerade nicht möglich" + (c ? " (" + c + ")" : "") + ".");
+        var vollbild = window.navigator.standalone === true ||
+          (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+        if (c === "not-allowed" || c === "service-not-allowed") {
+          hinweis.textContent = vollbild
+            ? "Im Home-Bildschirm-Modus sperrt iOS das Mikrofon. Bitte die Seite in Safari öffnen und dort diktieren."
+            : "Mikrofon nicht erlaubt – beim Nachfragen „Erlauben“ tippen (bzw. Einstellungen → Safari → Mikrofon → „Fragen“).";
+        } else if (c === "no-speech") {
+          hinweis.textContent = "Nichts gehört – bitte nochmal tippen und sprechen.";
+        } else {
+          hinweis.textContent = "Spracheingabe gerade nicht möglich" + (c ? " (" + c + ")" : "") + ".";
+        }
         hinweis.dataset.fehler = "1";
       };
       r.onend = function () {
