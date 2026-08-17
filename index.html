@@ -710,6 +710,17 @@
           <button id="cloud-jetzt-sync">Jetzt synchronisieren</button>
           <button id="cloud-abmelden">Abmelden</button>
         </div>
+        <div class="picker-zusatz">
+          <button id="cloud-upload">⬆️ Sync-Upload</button>
+          <button id="cloud-download">⬇️ Sync-Download</button>
+        </div>
+        <div id="cloud-sync-bestaetigen" hidden>
+          <div class="cloud-warn" id="cloud-sync-warn"></div>
+          <div class="picker-zusatz">
+            <button id="cloud-sync-ja">Ja, ausführen</button>
+            <button id="cloud-sync-nein">Abbrechen</button>
+          </div>
+        </div>
         <button id="cloud-mp-aendern-auf" class="cloud-link">🔑 Master-Passwort ändern</button>
         <div id="cloud-mp-aendern" hidden>
           <input id="cloud-mp-neu" class="vhedit-input" type="password" placeholder="Neues Master-Passwort (min. 6 Zeichen)" autocomplete="off">
@@ -2133,10 +2144,10 @@
   async function cloudPull() {
     if (!cloudAktiv()) return false;
     var res = await sb.from("app_state").select("data, updated_at").eq("user_id", cloudUser.id).maybeSingle();
-    if (res.error || !res.data || !res.data.data) return false;
+    if (res.error || !res.data || !res.data.data) { cloudStatusText("In der Cloud liegen noch keine Daten."); return false; }
     var obj;
     try { obj = await cloudEntschluesseln(res.data.data, cloudPass); }
-    catch (e) { alert("Entschlüsselung fehlgeschlagen – stimmt das Master-Passwort auf diesem Gerät?"); return false; }
+    catch (e) { cloudStatusText("Entschlüsselung fehlgeschlagen – stimmt das Master-Passwort auf diesem Gerät?"); return false; }
     cloudZustandAnwenden(obj);
     _setItemRoh("change-app-cloud-sync", res.data.updated_at);
     location.reload();
@@ -2158,6 +2169,28 @@
     } catch (e) { cloudStatusText("Offline – Sync folgt später."); }
   }
 
+  /* ---- Manueller Sync-Upload / Sync-Download (mit Sicherheitsabfrage) ---- */
+  var cloudSyncAktion = null;
+  function cloudSyncFrage(art) {
+    cloudSyncAktion = art;
+    document.getElementById("cloud-sync-warn").innerHTML = (art === "upload")
+      ? "⬆️ <b>Sync-Upload:</b> Alle Daten von <b>diesem Gerät</b> werden in die Cloud geschrieben und überschreiben dort den bisherigen Stand (auch neuere Daten anderer Geräte)."
+      : "⬇️ <b>Sync-Download:</b> Alle Daten aus der <b>Cloud</b> werden auf dieses Gerät geschrieben und überschreiben die lokalen Daten. Danach wird die App neu geladen.";
+    document.getElementById("cloud-sync-bestaetigen").hidden = false;
+  }
+  async function cloudSyncAusfuehren() {
+    var art = cloudSyncAktion; cloudSyncAktion = null;
+    document.getElementById("cloud-sync-bestaetigen").hidden = true;
+    if (!cloudAktiv()) { cloudStatusText("Nicht angemeldet/freigeschaltet."); return; }
+    if (art === "upload") {
+      cloudStatusText("Lade alle Daten hoch…");
+      cloudDirtyFlag = true; await cloudPush();
+    } else if (art === "download") {
+      cloudStatusText("Lade alle Daten aus der Cloud…");
+      await cloudPull();   // wendet an und lädt die App neu
+    }
+  }
+
   /* ---- Cloud-Dialog / Anmeldung ---- */
   var cloudDialog = document.getElementById("cloud-dialog");
   function cloudStatusText(t) { var el = document.getElementById("cloud-status"); if (el) el.textContent = t; }
@@ -2169,6 +2202,7 @@
     document.getElementById("cloud-account").hidden = rec || !(eingeloggt && frei);
     document.getElementById("cloud-mp-aendern").hidden = true;   // Änder-Formular eingeklappt
     document.getElementById("cloud-mp-vergessen").hidden = true; // Vergessen-Formular eingeklappt
+    document.getElementById("cloud-sync-bestaetigen").hidden = true; // Sync-Abfrage eingeklappt
     if (!sb) cloudStatusText("Cloud-Baustein nicht geladen (bist du offline?).");
     else if (rec) cloudStatusText("Setze jetzt dein neues Konto-Passwort.");
     else if (!eingeloggt) cloudStatusText("Melde dich an, um über alle Geräte zu synchronisieren.");
@@ -2283,6 +2317,10 @@
     document.getElementById("cloud-pw-neu-speichern").onclick = cloudNeuesPasswortSpeichern;
     document.getElementById("cloud-freischalten").onclick = cloudFreischalten;
     document.getElementById("cloud-jetzt-sync").onclick = cloudInitSync;
+    document.getElementById("cloud-upload").onclick = function () { cloudSyncFrage("upload"); };
+    document.getElementById("cloud-download").onclick = function () { cloudSyncFrage("download"); };
+    document.getElementById("cloud-sync-ja").onclick = cloudSyncAusfuehren;
+    document.getElementById("cloud-sync-nein").onclick = function () { cloudSyncAktion = null; document.getElementById("cloud-sync-bestaetigen").hidden = true; };
     document.getElementById("cloud-abmelden").onclick = cloudAbmelden;
     document.getElementById("cloud-mp-aendern-auf").onclick = function () {
       var f = document.getElementById("cloud-mp-aendern"); f.hidden = !f.hidden;
